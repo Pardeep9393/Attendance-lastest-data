@@ -377,7 +377,26 @@
 <div class="toast" id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
+/* ---------- FIREBASE SETUP ----------
+   Realtime Database is the shared backend so the view-only employee link
+   and the admin link both read/write the same live data, even when this
+   file is hosted as a plain static page (e.g. GitHub Pages) with no
+   server of its own. */
+const firebaseConfig = {
+  apiKey: "AIzaSyBDUq16Up3XopcBwPk8UQ2t5wgTlDMXKYg",
+  authDomain: "attendance-emiza.firebaseapp.com",
+  databaseURL: "https://attendance-emiza-default-rtdb.firebaseio.com/",
+  projectId: "attendance-emiza",
+  storageBucket: "attendance-emiza.firebasestorage.app",
+  messagingSenderId: "84536914545",
+  appId: "1:84536914545:web:759eaeb06295808a4ea1d0"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
 /* ---------- ACCESS MODE ----------
    Default = view-only (no upload/clear/download controls).
    Admin controls unlock only when the URL contains ?admin=wms2026admin
@@ -734,38 +753,46 @@ el('clearFiltersBtn').addEventListener('click', ()=>{
   el('statusFilter').value = '';
   render();
 });
-/* ---------- STORAGE ---------- */
+/* ---------- STORAGE (Firebase Realtime Database) ---------- */
 async function saveToStorage(){
   try{
-    const result = await window.storage.set('attendance_data', JSON.stringify({
+    await db.ref('attendance_data').set({
       records: rawRecords.map(s=>({...s, firstPunch:s.firstPunch.toISOString(), lastPunch:s.lastPunch.toISOString()})),
       savedAt: new Date().toISOString()
-    }), true);
-    if(!result){ showToast('⚠ Could not save shared data'); }
+    });
   }catch(e){
     console.error('Storage save error', e);
-    showToast('⚠ Could not save shared data');
+    showToast('⚠ Could not save shared data — check Firebase rules');
   }
 }
-async function loadFromStorage(){
+function applyLoadedData(parsed, opts){
+  opts = opts || {};
+  rawRecords = parsed.records.map(s=>({...s, firstPunch:new Date(s.firstPunch), lastPunch:new Date(s.lastPunch)}));
+  showDashboard();
+  el('subTitle').textContent = `${rawRecords.length} shift-records · last updated ${new Date(parsed.savedAt).toLocaleString()}`;
+  el('sharedBadge').style.display = 'flex';
+  if(opts.notifyUpdate) showToast('↻ Dashboard updated with the latest data');
+}
+function loadFromStorage(){
   el('loadingState').style.display = 'block';
-  try{
-    const result = await window.storage.get('attendance_data', true);
-    if(result && result.value){
-      const parsed = JSON.parse(result.value);
-      rawRecords = parsed.records.map(s=>({...s, firstPunch:new Date(s.firstPunch), lastPunch:new Date(s.lastPunch)}));
-      showDashboard();
-      el('subTitle').textContent = `${rawRecords.length} shift-records · last updated ${new Date(parsed.savedAt).toLocaleString()}`;
-      el('sharedBadge').style.display = 'flex';
-    }
-  }catch(e){
-    // no data yet — that's fine, show empty state
-  } finally {
+  let firstLoad = true;
+  // Live listener: anyone with the link (admin or viewer) sees new uploads
+  // appear automatically, without needing to refresh the page.
+  db.ref('attendance_data').on('value', (snapshot)=>{
+    const parsed = snapshot.val();
     el('loadingState').style.display = 'none';
-    if(rawRecords.length === 0){
+    if(parsed && Array.isArray(parsed.records) && parsed.records.length){
+      applyLoadedData(parsed, { notifyUpdate: !firstLoad });
+    } else if(rawRecords.length === 0){
       el('emptyState').style.display = 'block';
     }
-  }
+    firstLoad = false;
+  }, (err)=>{
+    console.error('Storage load error', err);
+    el('loadingState').style.display = 'none';
+    if(rawRecords.length === 0) el('emptyState').style.display = 'block';
+    showToast('⚠ Could not reach shared data — check Firebase rules');
+  });
 }
 function showDashboard(){
   el('emptyState').style.display = 'none';
@@ -812,8 +839,12 @@ if(IS_ADMIN){
   el('clearBtn').addEventListener('click', async ()=>{
     if(!confirm('Clear the shared attendance data? Everyone with the view-only link will see an empty dashboard.')) return;
     try{
-      await window.storage.delete('attendance_data', true);
-    }catch(e){}
+      await db.ref('attendance_data').remove();
+    }catch(e){
+      console.error('Clear error', e);
+      showToast('⚠ Could not clear shared data');
+      return;
+    }
     rawRecords = [];
     el('dashboard').style.display = 'none';
     el('emptyState').style.display = 'block';
