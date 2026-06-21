@@ -321,6 +321,9 @@
         <option value="Day">Day Shift</option>
         <option value="Night">Night Shift</option>
       </select>
+      <select id="departmentFilter">
+        <option value="">All Departments</option>
+      </select>
       <select id="statusFilter">
         <option value="">All Status</option>
         <option value="Present">Present</option>
@@ -685,6 +688,7 @@ function render(){
   const dateFrom = el('dateFromFilter').value;
   const dateTo = el('dateToFilter').value;
   const shiftF = el('shiftFilter').value;
+  const deptF = el('departmentFilter').value;
   const statusF = el('statusFilter').value;
   const filtered = rawRecords.filter(s=>{
     if(codeF && !(s.empCode||'').toLowerCase().includes(codeF)) return false;
@@ -692,6 +696,7 @@ function render(){
     if(dateFrom && s.shiftDate < dateFrom) return false;
     if(dateTo && s.shiftDate > dateTo) return false;
     if(shiftF && s.shiftType !== shiftF) return false;
+    if(deptF && (s.department || 'Unassigned') !== deptF) return false;
     if(statusF && s.status !== statusF) return false;
     return true;
   });
@@ -705,8 +710,8 @@ function render(){
   el('statDay').textContent = filtered.filter(s=>s.shiftType==='Day').length;
   el('statNight').textContent = filtered.filter(s=>s.shiftType==='Night').length;
   el('filterCount').textContent = `${filtered.length} of ${rawRecords.length} records`;
-  // Range summary: show whenever a date range, code, or name filter narrows the set
-  const anyDateOrPersonFilter = dateFrom || dateTo || codeF || nameF;
+  // Range summary: show whenever a date range, code, name, or department filter narrows the set
+  const anyDateOrPersonFilter = dateFrom || dateTo || codeF || nameF || deptF;
   if(anyDateOrPersonFilter){
     el('rangeSummary').style.display = 'flex';
     el('rsPresent').textContent = filtered.filter(s=>s.status==='Present').length;
@@ -740,7 +745,7 @@ function render(){
     </tr>`;
   }).join('');
 }
-[el('codeFilter'), el('nameFilter'), el('dateFromFilter'), el('dateToFilter'), el('shiftFilter'), el('statusFilter')].forEach(node=>{
+[el('codeFilter'), el('nameFilter'), el('dateFromFilter'), el('dateToFilter'), el('shiftFilter'), el('departmentFilter'), el('statusFilter')].forEach(node=>{
   node.addEventListener('input', render);
   node.addEventListener('change', render);
 });
@@ -750,6 +755,7 @@ el('clearFiltersBtn').addEventListener('click', ()=>{
   el('dateFromFilter').value = '';
   el('dateToFilter').value = '';
   el('shiftFilter').value = '';
+  el('departmentFilter').value = '';
   el('statusFilter').value = '';
   render();
 });
@@ -794,6 +800,15 @@ function loadFromStorage(){
     showToast('⚠ Could not reach shared data — check Firebase rules');
   });
 }
+function populateDepartmentOptions(){
+  const sel = el('departmentFilter');
+  const prevValue = sel.value;
+  const depts = [...new Set(rawRecords.map(s => s.department && s.department.trim() ? s.department.trim() : 'Unassigned'))].sort();
+  sel.innerHTML = '<option value="">All Departments</option>' +
+    depts.map(d => `<option value="${d.replace(/"/g,'&quot;')}">${d}</option>`).join('');
+  // Keep the previously selected department if it still exists in the new data
+  if(depts.includes(prevValue)) sel.value = prevValue;
+}
 function showDashboard(){
   el('emptyState').style.display = 'none';
   el('dashboard').style.display = 'block';
@@ -801,6 +816,7 @@ function showDashboard(){
     el('clearBtn').style.display = 'inline-flex';
     el('downloadWrap').style.display = 'block';
   }
+  populateDepartmentOptions();
   render();
 }
 /* ---------- CSV UPLOAD (admin only) ---------- */
