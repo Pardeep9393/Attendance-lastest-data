@@ -470,6 +470,15 @@ tbody td{padding:7px 9px;vertical-align:middle;}
 <!-- ═══ VIEWER MODE ═══ -->
 <div id="vmode" style="display:none">
 <div class="wrap">
+  <!-- GS URL setup banner for viewer — shown only if not configured -->
+  <div id="vgs-setup" style="display:none;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:10px;padding:13px 16px;margin-bottom:14px;font-size:.8rem;color:var(--tx)">
+    <b style="color:var(--am)">⚠ Google Sheets URL set nahi hai</b> — Admin se URL lo aur yahan paste karo taaki live data fetch ho:
+    <div style="display:flex;gap:7px;margin-top:8px;flex-wrap:wrap">
+      <input id="vgs-url-inp" class="fi" placeholder="https://script.google.com/macros/s/.../exec" style="flex:1;min-width:200px">
+      <input id="vgs-sheet-inp" class="fi" placeholder="Sheet name (Attendance)" style="width:140px">
+      <button class="btn bc" onclick="saveVGS()">💾 Save & Load</button>
+    </div>
+  </div>
   <div class="vhdr">
     <div>
       <h2 id="vtitle">Attendance Viewer</h2>
@@ -604,7 +613,42 @@ const GS_CODE = `function doPost(e) {
   }
 }
 function doGet(e) {
-  return ContentService.createTextOutput(JSON.stringify({status:'ok',message:'Attendance Pro API Ready'})).setMimeType(ContentService.MimeType.JSON);
+  try {
+    var params = e ? (e.parameter || {}) : {};
+    var action = params.action || '';
+    if (action === 'fetch') {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var sheetName = params.sheet || 'Attendance';
+      var sheet = ss.getSheetByName(sheetName);
+      if (!sheet || sheet.getLastRow() < 2) {
+        return ContentService.createTextOutput(JSON.stringify({status:'ok',records:[]})).setMimeType(ContentService.MimeType.JSON);
+      }
+      var lastRow = sheet.getLastRow();
+      var data = sheet.getRange(2, 1, lastRow - 1, 12).getValues();
+      var records = data.map(function(row) {
+        if (!row[0]) return null;
+        return {
+          empId: String(row[0]),
+          name: String(row[1]),
+          dept: String(row[2]),
+          designation: String(row[3]),
+          mobile: String(row[4]),
+          date: String(row[5]),
+          shift: String(row[6]),
+          loc: String(row[7]) || 'Main',
+          in: row[8] ? String(row[8]) : '',
+          out: row[9] ? String(row[9]) : '',
+          duration: String(row[10])
+        };
+      }).filter(Boolean);
+      var output = ContentService.createTextOutput(JSON.stringify({status:'ok',records:records}));
+      output.setMimeType(ContentService.MimeType.JSON);
+      return output;
+    }
+    return ContentService.createTextOutput(JSON.stringify({status:'ok',message:'Attendance Pro API Ready'})).setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({status:'error',message:err.toString()})).setMimeType(ContentService.MimeType.JSON);
+  }
 }`;
 
 function showGSCodeModal() {
@@ -700,11 +744,36 @@ function loadGSForm() {
     document.getElementById('vtitle').textContent = DEPT ? DEPT+' — Attendance Dashboard' : 'Full Attendance Dashboard';
     document.getElementById('vsub').textContent   = DEPT ? 'Sirf '+DEPT+' department | Read-only' : 'Sab departments | Read-only';
     vdept = DEPT;
-    renderV();
+
+    // Fetch from Google Sheets if URL set, else fallback to localStorage
+    window.fetchAndRender = async function fetchAndRender() {
+      const gsUrl = gsSettings.url || '';
+      const gsSheet = gsSettings.sheet || 'Attendance';
+      if (gsUrl) {
+        try {
+          const fetchUrl = gsUrl + '?action=fetch&sheet=' + encodeURIComponent(gsSheet) + '&t=' + Date.now();
+          const res = await fetch(fetchUrl);
+          const json = await res.json();
+          if (json.status === 'ok' && Array.isArray(json.records)) {
+            recs = json.records;
+            renderV();
+            return;
+          }
+        } catch(err) { console.warn('GS fetch failed, localStorage fallback', err); }
+      }
+      recs = gS(SK);
+      renderV();
+    }
+
+    // Show GS setup banner if no URL configured
+    const vgsSetup = document.getElementById('vgs-setup');
+    if (!gsSettings.url && vgsSetup) vgsSetup.style.display = 'block';
+
+    fetchAndRender();
     const rb2 = document.getElementById('refresh-badge');
     if (rb2) { rb2.style.display='inline'; rb2.textContent='🔄 Auto Refresh: 15s'; }
-    // AUTO REFRESH every 15 seconds in viewer
-    setInterval(() => { recs = gS(SK); renderV(); }, 15000);
+    // AUTO REFRESH every 15 seconds in viewer — from Google Sheets
+    setInterval(() => { fetchAndRender(); }, 15000);
 
   } else {
     // ADMIN mode
@@ -1268,6 +1337,20 @@ document.addEventListener('keydown',e=>{
   }
 });
 document.getElementById('emod').addEventListener('click',function(e){if(e.target===this)closeEM();});
+
+// ══════════════════════════════════════
+// VIEWER — Save GS URL from banner
+// ══════════════════════════════════════
+function saveVGS() {
+  const url = (document.getElementById('vgs-url-inp')||{}).value?.trim() || '';
+  const sheet = (document.getElementById('vgs-sheet-inp')||{}).value?.trim() || 'Attendance';
+  if (!url) { alert('URL daalo pehle!'); return; }
+  gsSettings = { url, sheet: sheet || 'Attendance' };
+  sS(GSK, gsSettings);
+  const setup = document.getElementById('vgs-setup');
+  if (setup) setup.style.display = 'none';
+  if (window.fetchAndRender) window.fetchAndRender();
+}
 </script>
 </body>
 </html>
