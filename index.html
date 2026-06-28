@@ -1,831 +1,1273 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Warehouse Attendance Dashboard</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Attendance Pro</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-  :root{
-    --bg:#11141B;
-    --panel:#1A1F2B;
-    --panel-2:#1F2533;
-    --border:#2B3242;
-    --text:#E8EAED;
-    --text-dim:#9099AC;
-    --text-faint:#5C6478;
-    --day:#F5A623;
-    --day-dim:#5C4823;
-    --night:#5B7FFF;
-    --night-dim:#26305C;
-    --present:#2DD4A7;
-    --present-dim:#16493D;
-    --halfday:#F5A623;
-    --halfday-dim:#5C4823;
-    --absentish:#E5566B;
-    --absentish-dim:#5C2530;
-    --accent:#5B7FFF;
-  }
-  *{box-sizing:border-box; margin:0; padding:0;}
-  body{
-    background:var(--bg);
-    color:var(--text);
-    font-family:'Inter', sans-serif;
-    min-height:100vh;
-    padding:28px 24px 60px;
-  }
-  .wrap{max-width:1320px; margin:0 auto;}
-  header{
-    display:flex; justify-content:space-between; align-items:flex-start;
-    margin-bottom:24px; gap:20px; flex-wrap:wrap;
-  }
-  .brand{display:flex; align-items:center; gap:14px;}
-  .brand-mark{
-    width:42px; height:42px; border-radius:10px;
-    background:linear-gradient(135deg, var(--day), var(--night));
-    display:flex; align-items:center; justify-content:center;
-    font-family:'Space Grotesk'; font-weight:700; font-size:18px; color:#11141B;
-    flex-shrink:0;
-  }
-  h1{font-family:'Space Grotesk'; font-weight:600; font-size:21px; letter-spacing:-0.01em;}
-  .brand-sub{color:var(--text-dim); font-size:12.5px; margin-top:2px;}
-  .actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
-  .btn{
-    font-family:'Inter'; font-weight:600; font-size:13px;
-    padding:10px 16px; border-radius:8px; border:1px solid var(--border);
-    background:var(--panel-2); color:var(--text); cursor:pointer;
-    display:flex; align-items:center; gap:8px;
-    transition:border-color .15s, background .15s;
-  }
-  .btn:hover{border-color:var(--accent); background:#222A3B;}
-  .btn-primary{background:linear-gradient(135deg, var(--night), #4767D9); border-color:transparent; color:#fff;}
-  .btn-primary:hover{filter:brightness(1.08); border-color:transparent;}
-  .btn svg{width:15px; height:15px; flex-shrink:0;}
-  input[type=file]{display:none;}
-  .badge-shared{
-    font-size:11.5px; font-weight:600; padding:6px 10px; border-radius:7px;
-    background:var(--present-dim); color:var(--present); border:1px solid #1E5A4C;
-    display:flex; align-items:center; gap:6px;
-  }
-  .badge-shared .dot{width:6px; height:6px; border-radius:50%; background:var(--present);}
-  .badge-viewonly{
-    font-size:11.5px; font-weight:600; padding:6px 10px; border-radius:7px;
-    background:var(--panel-2); color:var(--text-dim); border:1px solid var(--border);
-    display:flex; align-items:center; gap:6px;
-  }
-  .badge-viewonly svg{width:13px; height:13px;}
-  .badge-admin{
-    font-size:11.5px; font-weight:600; padding:6px 10px; border-radius:7px;
-    background:var(--night-dim); color:var(--night); border:1px solid #2E3E7A;
-    display:flex; align-items:center; gap:6px;
-  }
-  .empty{
-    background:var(--panel); border:1px dashed var(--border); border-radius:14px;
-    padding:70px 30px; text-align:center; margin-top:10px;
-  }
-  .empty svg{width:46px; height:46px; color:var(--text-faint); margin-bottom:16px;}
-  .empty h2{font-family:'Space Grotesk'; font-size:17px; font-weight:600; margin-bottom:8px;}
-  .empty p{color:var(--text-dim); font-size:13.5px; max-width:440px; margin:0 auto 22px; line-height:1.6;}
-  .stats{display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:18px;}
-  .stat{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px 16px 14px;}
-  .stat-label{font-size:11px; color:var(--text-dim); font-weight:600; text-transform:uppercase; letter-spacing:.04em; margin-bottom:8px;}
-  .stat-val{font-family:'Space Grotesk'; font-size:26px; font-weight:700; line-height:1;}
-  .stat.present .stat-val{color:var(--present);}
-  .stat.halfday .stat-val{color:var(--halfday);}
-  .stat.absentish .stat-val{color:var(--absentish);}
-  .stat.day .stat-val{color:var(--day);}
-  .stat.night .stat-val{color:var(--night);}
-  .filters{
-    background:var(--panel); border:1px solid var(--border); border-radius:12px;
-    padding:14px 16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px;
-  }
-  .filters input[type=text], .filters input[type=date], .filters select{
-    background:var(--panel-2); border:1px solid var(--border); color:var(--text);
-    font-family:'Inter'; font-size:13px; padding:9px 12px; border-radius:8px; outline:none;
-  }
-  .filters input[type=text]{min-width:180px; flex:1;}
-  .filters select{cursor:pointer;}
-  .filters input:focus, .filters select:focus{border-color:var(--accent);}
-  .filter-count{margin-left:auto; font-size:12.5px; color:var(--text-dim);}
-  /* Warehouse filter highlight */
-  #warehouseFilter{
-    border-color:#3A4A6A;
-    background:linear-gradient(135deg, #1F2533, #212840);
-  }
-  #warehouseFilter:focus{border-color:var(--accent);}
-  .range-summary{
-    background:var(--panel); border:1px solid var(--border); border-radius:12px;
-    padding:14px 18px; margin-bottom:16px;
-    display:flex; align-items:center; gap:22px; flex-wrap:wrap;
-  }
-  .rs-label{font-size:12px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em;}
-  .rs-items{display:flex; gap:22px; flex-wrap:wrap; align-items:center;}
-  .rs-item{display:flex; align-items:center; gap:7px; font-size:13.5px; color:var(--text-dim);}
-  .rs-num{font-family:'Space Grotesk'; font-weight:700; font-size:16px; color:var(--text);}
-  .rs-dot{width:9px; height:9px; border-radius:3px; display:inline-block;}
-  .rs-dot.present{background:var(--present);}
-  .rs-dot.halfday{background:var(--halfday);}
-  .rs-dot.short{background:#D9C170;}
-  .rs-total{margin-left:auto; padding-left:18px; border-left:1px solid var(--border);}
-  .chart-panel{
-    background:var(--panel); border:1px solid var(--border); border-radius:12px;
-    padding:18px 20px 14px; margin-bottom:16px;
-  }
-  .chart-head{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
-  .chart-title{font-family:'Space Grotesk'; font-size:15px; font-weight:600;}
-  .chart-sub{font-size:12px; color:var(--text-dim); margin-top:3px;}
-  .chart-legend{display:flex; gap:16px; font-size:12px; color:var(--text-dim);}
-  .chart-legend span{display:flex; align-items:center; gap:6px;}
-  .chart-legend .lg{width:9px; height:9px; border-radius:3px; display:inline-block;}
-  .chart-legend .lg.present{background:var(--present);}
-  .chart-legend .lg.halfday{background:var(--halfday);}
-  .chart-legend .lg.short{background:#D9C170;}
-  .chart-scroll{overflow-x:auto; overflow-y:hidden;}
-  #barChart{display:block;}
-  .bar-seg{cursor:pointer;}
-  .bar-seg.present{fill:var(--present);}
-  .bar-seg.halfday{fill:var(--halfday);}
-  .bar-seg.short{fill:#D9C170;}
-  .bar-axis-label{font-family:'JetBrains Mono'; font-size:10px; fill:var(--text-faint);}
-  .bar-grid-line{stroke:var(--border); stroke-width:1;}
-  .bar-total-label{font-family:'Space Grotesk'; font-size:11px; font-weight:600; fill:var(--text-dim);}
-  .table-wrap{background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden;}
-  table{width:100%; border-collapse:collapse;}
-  thead th{
-    text-align:left; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em;
-    color:var(--text-dim); padding:13px 14px; border-bottom:1px solid var(--border);
-    background:var(--panel-2); white-space:nowrap;
-  }
-  tbody td{padding:12px 14px; font-size:13.5px; border-bottom:1px solid var(--border); vertical-align:middle;}
-  tbody tr:last-child td{border-bottom:none;}
-  tbody tr:hover{background:rgba(255,255,255,0.02);}
-  .emp-name{font-weight:600;}
-  .emp-code{color:var(--text-faint); font-size:11.5px; font-family:'JetBrains Mono';}
-  .mono{font-family:'JetBrains Mono'; font-size:12.5px; color:var(--text-dim);}
-  .pill{display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:20px; font-size:11.5px; font-weight:600;}
-  .pill.day{background:var(--day-dim); color:var(--day);}
-  .pill.night{background:var(--night-dim); color:var(--night);}
-  .pill.present{background:var(--present-dim); color:var(--present);}
-  .pill.halfday{background:var(--halfday-dim); color:var(--halfday);}
-  .pill.short{background:#3A3320; color:#D9C170;}
-  .pill.absentish{background:var(--absentish-dim); color:var(--absentish);}
-  .timeline{
-    width:140px; height:18px; border-radius:5px; position:relative;
-    background-color:#171B25; border:1px solid var(--border); overflow:hidden;
-  }
-  .timeline .bar{position:absolute; top:3px; bottom:3px; border-radius:3px; min-width:3px;}
-  .timeline .bar.day{background:var(--day);}
-  .timeline .bar.night{background:var(--night);}
-  .hrs-val{font-family:'Space Grotesk'; font-weight:600; font-size:13.5px;}
-  footer{margin-top:20px; text-align:center; color:var(--text-faint); font-size:11.5px;}
-  @media (max-width:980px){.stats{grid-template-columns:repeat(3,1fr);} .table-wrap{overflow-x:auto;} table{min-width:1000px;}}
-  @media (max-width:560px){.stats{grid-template-columns:repeat(2,1fr);}}
-  .loading-row{padding:50px; text-align:center; color:var(--text-dim); font-size:13px;}
-  .spin{width:22px; height:22px; border:2.5px solid var(--border); border-top-color:var(--accent); border-radius:50%; margin:0 auto 12px; animation:sp 0.8s linear infinite;}
-  @keyframes sp{to{transform:rotate(360deg);}}
-  .toast{
-    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
-    background:var(--panel-2); border:1px solid var(--border); color:var(--text);
-    padding:12px 18px; border-radius:10px; font-size:13px; font-weight:500;
-    opacity:0; pointer-events:none; transition:all .25s; z-index:50;
-    box-shadow:0 8px 24px rgba(0,0,0,.4);
-  }
-  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
-  .download-menu{
-    display:none; position:absolute; top:calc(100% + 6px); right:0; z-index:30;
-    background:var(--panel-2); border:1px solid var(--border); border-radius:10px;
-    overflow:hidden; min-width:200px; box-shadow:0 12px 28px rgba(0,0,0,.45);
-  }
-  .download-menu.open{display:block;}
-  .download-menu button{
-    display:block; width:100%; text-align:left; padding:11px 14px;
-    background:none; border:none; color:var(--text); font-family:'Inter';
-    font-size:13px; cursor:pointer; transition:background .12s;
-  }
-  .download-menu button:hover{background:#283047;}
-  .download-menu button + button{border-top:1px solid var(--border);}
-  /* Warehouse banner - shows active WH filter */
-  .wh-banner{
-    display:none; background:linear-gradient(135deg,#212840,#1A2038);
-    border:1px solid #3A4A6A; border-radius:10px; padding:10px 16px;
-    margin-bottom:14px; align-items:center; gap:12px; flex-wrap:wrap;
-  }
-  .wh-banner.active{display:flex;}
-  .wh-banner-label{font-size:11.5px; color:var(--text-dim); font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
-  .wh-banner-name{font-family:'Space Grotesk'; font-weight:700; font-size:15px; color:var(--night);}
-  .wh-banner-clear{margin-left:auto; font-size:12px; color:var(--text-dim); cursor:pointer; text-decoration:underline;}
-  .wh-banner-clear:hover{color:var(--text);}
+:root{
+  --bg:#0F172A;--sf:#1E293B;--sf2:#273548;--bd:#334155;
+  --cy:#06B6D4;--gn:#10B981;--am:#F59E0B;--rd:#EF4444;
+  --pu:#818CF8;--pk:#F472B6;--tx:#E2E8F0;--mu:#94A3B8;--ra:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--tx);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 22px;
+  background:var(--sf);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:200;gap:10px;flex-wrap:wrap;}
+.logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:.95rem;color:var(--cy);}
+.hright{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+#clk{font-family:monospace;font-size:1rem;color:var(--cy);letter-spacing:1px;}
+.mbadge{padding:3px 11px;border-radius:20px;font-size:.73rem;font-weight:700;}
+.madmin{background:rgba(6,182,212,.15);border:1px solid var(--cy);color:var(--cy);}
+.mscan{background:rgba(16,185,129,.15);border:1px solid var(--gn);color:var(--gn);}
+.mview{background:rgba(129,140,248,.15);border:1px solid var(--pu);color:var(--pu);}
+.lpill{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:var(--am);
+  padding:3px 11px;border-radius:20px;font-size:.73rem;font-weight:700;display:none;}
+.tabs{display:flex;background:var(--sf);border-bottom:1px solid var(--bd);
+  padding:0 22px;position:sticky;top:55px;z-index:190;overflow-x:auto;}
+.tbtn{padding:11px 18px;border:none;background:none;color:var(--mu);
+  font-size:.83rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;}
+.tbtn.on{color:var(--cy);border-bottom-color:var(--cy);}
+.pg{display:none;}.pg.on{display:block;}
+.wrap{max-width:1400px;margin:0 auto;padding:18px 22px;}
+/* STATS */
+.sgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px;}
+.sc{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);
+  padding:13px 15px;position:relative;overflow:hidden;}
+.sc::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;background:var(--ac,var(--cy));}
+.slb{font-size:.66rem;color:var(--mu);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;}
+.sv{font-size:1.6rem;font-weight:700;font-family:monospace;}
+.s1{--ac:var(--cy);}.s2{--ac:var(--gn);}.s3{--ac:var(--am);}
+.s4{--ac:var(--pu);}.s5{--ac:var(--rd);}.s6{--ac:var(--pk);}
+/* FILTERS */
+.fbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;
+  background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);
+  padding:13px 17px;margin-bottom:18px;}
+.fbar label{font-size:.73rem;color:var(--mu);display:flex;flex-direction:column;gap:3px;}
+.sel{background:var(--bg);border:1px solid var(--bd);border-radius:7px;
+  color:var(--tx);padding:6px 9px;font-size:.81rem;cursor:pointer;outline:none;}
+.sel:focus{border-color:var(--cy);}
+/* BUTTONS */
+.btn{padding:6px 14px;border-radius:7px;border:none;cursor:pointer;font-size:.81rem;
+  font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;transition:opacity .2s;}
+.btn:hover{opacity:.85;}
+.bc{background:var(--cy);color:#000;}.bg{background:var(--gn);color:#000;}
+.ba{background:var(--am);color:#000;}.br{background:var(--rd);color:#fff;}
+.bp{background:var(--pu);color:#fff;}.bk{background:var(--sf2);color:var(--tx);border:1px solid var(--bd);}
+.ml{margin-left:auto;}
+/* MAIN GRID */
+.mgrid{display:grid;grid-template-columns:300px 1fr;gap:16px;margin-bottom:18px;}
+/* SCAN PANEL */
+.spanel{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);
+  padding:20px;display:flex;flex-direction:column;gap:12px;}
+.ptitle{font-size:.79rem;color:var(--mu);text-transform:uppercase;letter-spacing:1px;font-weight:700;}
+.sring{width:120px;height:120px;border-radius:50%;margin:0 auto;border:3px solid var(--bd);
+  display:flex;align-items:center;justify-content:center;transition:border-color .3s;}
+.sring.go{border-color:var(--gn);}.sring.wa{border-color:var(--am);}
+.sring.an{border-color:var(--cy);animation:pr 1s ease-in-out infinite;}
+@keyframes pr{0%,100%{box-shadow:0 0 0 0 rgba(6,182,212,.4);}50%{box-shadow:0 0 0 13px rgba(6,182,212,0);}}
+.sstatus{text-align:center;font-size:.78rem;color:var(--mu);min-height:15px;}
+.sstatus.ok{color:var(--gn);}.sstatus.wa{color:var(--am);}
+.srow{display:flex;gap:7px;}
+.fi{background:var(--bg);border:1px solid var(--bd);border-radius:7px;
+  color:var(--tx);padding:8px 11px;font-size:.88rem;outline:none;width:100%;}
+.fi:focus{border-color:var(--cy);}
+.srow .fi{flex:1;}
+.lbox{background:var(--bg);border:1px solid var(--bd);border-radius:9px;
+  padding:11px;font-size:.79rem;line-height:1.8;display:none;}
+.lbox.on{display:block;}
+.lbox .k{color:var(--mu);}
+.badge{display:inline-block;border-radius:5px;padding:2px 7px;font-size:.71rem;font-weight:700;}
+.bd2{background:rgba(245,158,11,.2);color:var(--am);}
+.bn{background:rgba(129,140,248,.2);color:var(--pu);}
+.bi{background:rgba(16,185,129,.2);color:var(--gn);}
+.bo{background:rgba(239,68,68,.2);color:var(--rd);}
+.inote{font-size:.74rem;color:var(--mu);background:rgba(6,182,212,.07);
+  border:1px solid rgba(6,182,212,.2);border-radius:7px;padding:7px 11px;line-height:1.5;}
+.mbar{font-size:.74rem;padding:7px 11px;border-radius:7px;text-align:center;display:none;}
+.mbar.ok{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--gn);display:block;}
+.mbar.er{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--rd);display:block;}
+/* TABLE PANEL */
+.tpanel{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);
+  padding:16px;display:flex;flex-direction:column;gap:11px;}
+.tw{overflow-x:auto;max-height:400px;overflow-y:auto;}
+table{width:100%;border-collapse:collapse;font-size:.79rem;}
+thead th{background:var(--bg);color:var(--mu);text-align:left;padding:7px 9px;
+  font-size:.66rem;text-transform:uppercase;letter-spacing:1px;position:sticky;top:0;z-index:1;white-space:nowrap;}
+tbody tr{border-bottom:1px solid var(--bd);transition:background .15s;}
+tbody tr:hover{background:var(--sf2);}
+tbody td{padding:7px 9px;vertical-align:middle;}
+.tm{font-family:monospace;}
+.nd{text-align:center;color:var(--mu);padding:36px 0;font-size:.83rem;}
+/* CHART */
+.cpanel{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);padding:20px;margin-bottom:18px;}
+.cpanel h2{font-size:.82rem;color:var(--mu);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;}
+.cw{position:relative;height:240px;}
+/* MASTER */
+.uzone{border:2px dashed var(--bd);border-radius:var(--ra);padding:32px 22px;
+  text-align:center;cursor:pointer;transition:all .2s;background:var(--sf);margin-bottom:16px;}
+.uzone:hover,.uzone.drag{border-color:var(--cy);background:rgba(6,182,212,.05);}
+.fbox{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);
+  padding:14px 18px;margin-bottom:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.fbox h3{font-size:.76rem;color:var(--mu);text-transform:uppercase;letter-spacing:1px;margin-bottom:7px;}
+.ct{display:inline-block;background:var(--bg);border:1px solid var(--bd);
+  border-radius:4px;padding:2px 7px;font-size:.73rem;font-family:monospace;margin:2px;}
+.ct.r{border-color:var(--gn);color:var(--gn);}.ct.o{border-color:var(--mu);color:var(--mu);}
+.ppanel{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);
+  padding:16px;margin-bottom:16px;display:none;}
+.ppanel.on{display:block;}
+.mlist{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);padding:16px;}
+/* LINKS */
+.lgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;}
+.lcard{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);padding:20px;}
+.lcard h3{font-size:.92rem;font-weight:700;margin-bottom:6px;}
+.lcard p{font-size:.78rem;color:var(--mu);margin-bottom:12px;line-height:1.5;}
+.lbox2{background:var(--bg);border:1px solid var(--bd);border-radius:7px;
+  padding:9px 11px;font-family:monospace;font-size:.72rem;color:var(--cy);
+  word-break:break-all;margin-bottom:7px;cursor:pointer;}
+.lbox2:hover{border-color:var(--cy);}
+.dlinks{display:flex;flex-direction:column;gap:7px;}
+.dli{background:var(--bg);border:1px solid var(--bd);border-radius:7px;
+  padding:7px 11px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+.dli .dn{font-size:.8rem;font-weight:600;white-space:nowrap;}
+.dli .du{font-family:monospace;font-size:.69rem;color:var(--cy);flex:1;word-break:break-all;}
+/* VIEWER */
+.vhdr{background:linear-gradient(135deg,rgba(129,140,248,.15),rgba(6,182,212,.1));
+  border:1px solid rgba(129,140,248,.3);border-radius:var(--ra);padding:15px 18px;margin-bottom:18px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.vhdr h2{font-size:1rem;font-weight:700;color:var(--pu);}
+.dpills{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;}
+.dp{padding:5px 13px;border-radius:20px;font-size:.76rem;font-weight:600;cursor:pointer;
+  border:1px solid var(--bd);background:var(--sf);color:var(--mu);transition:all .2s;}
+.dp.on,.dp:hover{border-color:var(--pu);background:rgba(129,140,248,.15);color:var(--pu);}
+/* MODAL */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center;}
+.ov.on{display:flex;}
+.modal{background:var(--sf);border:1px solid var(--bd);border-radius:13px;
+  padding:24px;max-width:420px;width:92%;max-height:80vh;overflow-y:auto;}
+.modal h3{font-size:.92rem;margin-bottom:13px;}
+.mr{display:flex;flex-direction:column;gap:4px;margin-bottom:11px;}
+.mr label{font-size:.73rem;color:var(--mu);}
+.mft{display:flex;gap:9px;margin-top:16px;justify-content:flex-end;}
+/* SYNC NOTICE */
+.sync-info{background:rgba(6,182,212,.07);border:1px solid rgba(6,182,212,.2);
+  border-radius:9px;padding:11px 14px;font-size:.77rem;color:var(--mu);line-height:1.6;margin-bottom:16px;}
+.sync-info b{color:var(--cy);}
+/* TOAST */
+#toast{position:fixed;bottom:22px;right:22px;background:var(--sf);
+  border:1px solid var(--bd);border-radius:9px;padding:11px 15px;font-size:.8rem;
+  max-width:290px;box-shadow:0 8px 28px rgba(0,0,0,.4);transform:translateY(80px);
+  opacity:0;transition:all .3s;z-index:999;display:flex;gap:7px;align-items:flex-start;}
+#toast.on{transform:translateY(0);opacity:1;}
+@media(max-width:860px){.mgrid{grid-template-columns:1fr;}.sgrid{grid-template-columns:repeat(3,1fr);}.fbox{grid-template-columns:1fr;}}
+@media(max-width:540px){.sgrid{grid-template-columns:repeat(2,1fr);}.wrap{padding:12px;}}
 </style>
 </head>
 <body>
+
+<!-- EMP MODAL -->
+<div class="ov" id="emod">
+  <div class="modal">
+    <h3 id="etitle">Employee Add</h3>
+    <div class="mr"><label>Employee ID *</label><input id="eid" class="fi" placeholder="E001"></div>
+    <div class="mr"><label>Name *</label><input id="ename" class="fi" placeholder="Ram Kumar"></div>
+    <div class="mr"><label>Department *</label><input id="edept" class="fi" placeholder="Production"></div>
+    <div class="mr"><label>Designation</label><input id="edesig" class="fi" placeholder="Operator"></div>
+    <div class="mr"><label>Mobile</label><input id="emob" class="fi" placeholder="9876543210"></div>
+    <div class="mft">
+      <button class="btn bk" onclick="closeEM()">Cancel</button>
+      <button class="btn bg" onclick="saveEM()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"><span id="tico" style="font-size:1rem;flex-shrink:0">✅</span><div id="tmsg"></div></div>
+
+<header>
+  <div class="logo">
+    <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="7" fill="#06B6D4" fill-opacity=".15"/>
+      <path d="M5 8h3v12H5V8zm4 0h2v12H9V8zm3 0h1v12h-1V8zm2 0h3v12h-3V8zm5 0h1v12h-1V8zm2 0h2v12h-2V8z" fill="#06B6D4"/>
+    </svg>
+    <span id="htitle">Attendance Pro</span>
+  </div>
+  <div class="hright">
+    <span class="lpill" id="lpill"></span>
+    <span class="mbadge" id="mbadge"></span>
+    <span id="refresh-badge" style="display:none;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);color:var(--gn);padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:600">🔄 Auto Refresh ON</span>
+    <div id="clk">--:--:--</div>
+  </div>
+</header>
+
+<div class="tabs" id="tabs">
+  <button class="tbtn on" onclick="showTab('att',this)">Attendance</button>
+  <button class="tbtn" onclick="showTab('master',this)">Master Data</button>
+  <button class="tbtn" onclick="showTab('links',this)">Links / Share</button>
+</div>
+
+<!-- ═══ ATTENDANCE TAB ═══ -->
+<div id="pg-att" class="pg on">
 <div class="wrap">
-  <header>
-    <div class="brand">
-      <div class="brand-mark">A</div>
+  <div class="sgrid">
+    <div class="sc s1"><div class="slb">Total Punches</div><div class="sv" id="s-tot">0</div></div>
+    <div class="sc s2"><div class="slb">Aaj Unique</div><div class="sv" id="s-tod">0</div></div>
+    <div class="sc s3"><div class="slb">Day Shift ☀</div><div class="sv" id="s-day">0</div></div>
+    <div class="sc s4"><div class="slb">Night Shift 🌙</div><div class="sv" id="s-ngt">0</div></div>
+    <div class="sc s5"><div class="slb">Punch IN</div><div class="sv" id="s-in">0</div></div>
+    <div class="sc s6"><div class="slb">Punch OUT</div><div class="sv" id="s-out">0</div></div>
+  </div>
+  <div class="fbar">
+    <label>Location<select id="floc" class="sel"><option value="">Sab Locations</option></select></label>
+    <label>Department<select id="fd" class="sel"><option value="">Sab</option></select></label>
+    <label>Date<input type="date" id="fdate" class="sel"></label>
+    <label>Shift<select id="fsh" class="sel"><option value="">Dono</option><option value="Day">Day ☀</option><option value="Night">Night 🌙</option></select></label>
+    <label>Punch<select id="fpt" class="sel"><option value="">Sab</option><option value="IN">Punch IN</option><option value="OUT">Punch OUT</option></select></label>
+    <button class="btn bc" onclick="doFilter()">Filter</button>
+    <button class="btn bk" onclick="clearFilt()">Clear</button>
+    <button class="btn bg ml" onclick="dlCSV()">⬇ CSV</button>
+    <button class="btn bp" onclick="doBulkSync()" title="Sab data ek baar Google Sheets mein bhejo">📊 GS Sync</button>
+    <button class="btn br" id="clrAllBtn" onclick="clrAll()">🗑 Clear All</button>
+  </div>
+  <div class="mgrid">
+    <div class="spanel">
+      <div class="ptitle">Card Scan</div>
+      <div class="sring" id="sring"><span id="sico" style="font-size:2.3rem">🪪</span></div>
+      <div class="sstatus" id="sstat">Card ID scan karein ya type karein</div>
+      <div class="srow">
+        <input id="sinp" class="fi" placeholder="Employee ID..." autofocus onkeydown="if(event.key==='Enter')doScan()">
+        <button class="btn bc" onclick="doScan()">Scan</button>
+      </div>
       <div>
-        <h1>Warehouse Attendance Dashboard</h1>
-        <div class="brand-sub" id="subTitle">Upload raw punch-log CSV to begin</div>
+        <label style="font-size:.73rem;color:var(--mu);display:block;margin-bottom:3px">Department (naye ke liye)</label>
+        <select id="dsel" class="fi sel" style="padding:7px"></select>
+      </div>
+      <div>
+        <label style="font-size:.73rem;color:var(--mu);display:block;margin-bottom:3px">Name (naye ke liye)</label>
+        <input id="enm" class="fi" placeholder="Employee name...">
+      </div>
+      <div class="lbox" id="lbox"></div>
+      <div class="inote">
+        1st scan = <b style="color:var(--gn)">Punch IN</b> &nbsp;|&nbsp; 2nd scan = <b style="color:var(--rd)">Punch OUT</b><br>
+        Day: 7:30AM–7:30PM &nbsp;|&nbsp; Night: 7:30PM–7:30AM
+      </div>
+      <div class="mbar" id="mbar"></div>
+      <button class="btn ba" id="syncbtn" style="display:none;width:100%" onclick="doManualSync()">🔄 Master Data Manually Sync Karo</button>
+    </div>
+    <div class="tpanel">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px">
+        <div class="ptitle">Attendance Records</div>
+        <span style="font-size:.75rem;color:var(--mu)" id="rcount"></span>
+      </div>
+      <div class="tw">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Emp ID</th><th>Name</th><th>Department</th>
+            <th>Location</th><th>Date</th><th>Shift</th><th>Punch IN ✅</th><th>Punch OUT 🔴</th><th>Duration</th>
+          </tr></thead>
+          <tbody id="atbody"></tbody>
+        </table>
       </div>
     </div>
-    <div class="actions">
-      <span class="badge-admin" id="adminBadge" style="display:none;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/></svg>
-        Admin mode
-      </span>
-      <span class="badge-viewonly" id="viewOnlyBadge" style="display:none;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
-        View only
-      </span>
-      <span class="badge-shared" id="sharedBadge" style="display:none;">
-        <span class="dot"></span> Live data &middot; shared with this link
-      </span>
-      <div class="download-wrap" id="downloadWrap" style="display:none; position:relative;">
-        <button class="btn btn-primary" id="downloadBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v12M12 16l-4-4M12 16l4-4"/><path d="M4 20h16"/></svg>
-          Download Data
-        </button>
-        <div class="download-menu" id="downloadMenu">
-          <button data-fmt="xlsx">Download as Excel (.xlsx)</button>
-          <button data-fmt="csv">Download as CSV</button>
-        </div>
-      </div>
-      <div id="uploadControls" style="display:none; align-items:center; gap:10px;">
-        <label class="btn" for="csvInput">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
-          Upload CSV
-        </label>
-        <input type="file" id="csvInput" accept=".csv">
-        <button class="btn" id="clearBtn" style="display:none;">Clear data</button>
-      </div>
-    </div>
-  </header>
+  </div>
+  <div class="cpanel">
+    <h2>Department-wise Chart</h2>
+    <div class="cw"><canvas id="dchart"></canvas></div>
+  </div>
+</div>
+</div>
 
-  <div id="emptyState" class="empty" style="display:none;">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>
-    <h2>No attendance data loaded yet</h2>
-    <p id="emptyStateText">Upload the raw punch-log CSV (columns: Warehouse Name, Employee Code, Employee Name, Log Time, etc.).</p>
-    <label class="btn btn-primary" for="csvInput" id="emptyStateBtn" style="display:inline-flex;">Choose CSV file</label>
+<!-- ═══ MASTER TAB ═══ -->
+<div id="pg-master" class="pg">
+<div class="wrap">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px">
+    <div>
+      <h2 style="font-size:1rem;font-weight:700">Employee Master Data</h2>
+      <p style="font-size:.78rem;color:var(--mu);margin-top:3px">CSV upload karo — scan pe name/dept auto fill hoga. Master data sab locations pe sync rahega.</p>
+    </div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap">
+      <button class="btn ba" onclick="dlTpl()">📄 Sample CSV</button>
+      <button class="btn bg" onclick="dlMaster()">⬇ Export</button>
+      <button class="btn br" onclick="clrMaster()">🗑 Clear</button>
+    </div>
   </div>
 
-  <div id="loadingState" class="loading-row">
-    <div class="spin"></div>
-    Loading attendance data&hellip;
+  <div class="sync-info">
+    <b>Auto Sync:</b> Master data sab tabs (Scanner, Viewer) pe automatically available hai — same browser mein.<br>
+    <b>Alag device?</b> Scanner link generate karne se pehle master upload karo. Scanner device pe "Manual Sync" button se CSV paste karo.
   </div>
 
-  <div id="dashboard" style="display:none;">
-    <div class="stats">
-      <div class="stat"><div class="stat-label">Total Records</div><div class="stat-val" id="statTotal">0</div></div>
-      <div class="stat present"><div class="stat-label">Present</div><div class="stat-val" id="statPresent">0</div></div>
-      <div class="stat halfday"><div class="stat-label">Half Day</div><div class="stat-val" id="statHalf">0</div></div>
-      <div class="stat absentish"><div class="stat-label">Short Hours</div><div class="stat-val" id="statShort">0</div></div>
-      <div class="stat day"><div class="stat-label">Day Shift</div><div class="stat-val" id="statDay">0</div></div>
-      <div class="stat night"><div class="stat-label">Night Shift</div><div class="stat-val" id="statNight">0</div></div>
+  <div class="fbox">
+    <div>
+      <h3>Required Columns</h3>
+      <span class="ct r">EmployeeID</span><span class="ct r">Name</span><span class="ct r">Department</span>
+      <span class="ct o">Designation</span><span class="ct o">Mobile</span>
+      <p style="font-size:.72rem;color:var(--mu);margin-top:7px">Green = Zaroori &nbsp;|&nbsp; Gray = Optional &nbsp;|&nbsp; Headers case-insensitive</p>
     </div>
-
-    <div class="filters">
-      <input type="text" id="codeFilter" placeholder="Employee Code&hellip;">
-      <input type="text" id="nameFilter" placeholder="Employee Name&hellip;">
-      <span style="display:flex; align-items:center; gap:6px;">
-        <input type="date" id="dateFromFilter" title="From date">
-        <span style="color:var(--text-faint); font-size:12px;">to</span>
-        <input type="date" id="dateToFilter" title="To date">
-      </span>
-      <select id="warehouseFilter" title="Filter by Warehouse">
-        <option value="">All Warehouses</option>
-      </select>
-      <select id="shiftFilter">
-        <option value="">All Shifts</option>
-        <option value="Day">Day Shift</option>
-        <option value="Night">Night Shift</option>
-      </select>
-      <select id="departmentFilter">
-        <option value="">All Departments</option>
-      </select>
-      <select id="statusFilter">
-        <option value="">All Status</option>
-        <option value="Present">Present</option>
-        <option value="Half Day">Half Day</option>
-        <option value="Short Hours">Short Hours</option>
-      </select>
-      <button class="btn" id="clearFiltersBtn" style="padding:9px 14px; font-size:12.5px;">Clear filters</button>
-      <div class="filter-count" id="filterCount"></div>
+    <div>
+      <h3>Tips</h3>
+      <ul style="font-size:.76rem;color:var(--mu);line-height:1.9;padding-left:15px">
+        <li>.csv format use karein (Excel → Save As → CSV)</li>
+        <li>Pehli row headers honi chahiye</li>
+        <li>Duplicate ID update ho jaata hai</li>
+        <li>Import ke baad scanner links regenerate karo</li>
+      </ul>
     </div>
-
-    <!-- Warehouse active banner -->
-    <div class="wh-banner" id="whBanner">
-      <span class="wh-banner-label">Warehouse</span>
-      <span class="wh-banner-name" id="whBannerName"></span>
-      <span class="wh-banner-clear" id="whBannerClear">Clear &times;</span>
-    </div>
-
-    <div class="range-summary" id="rangeSummary" style="display:none;">
-      <div class="rs-label">Selected range total</div>
-      <div class="rs-items">
-        <div class="rs-item"><span class="rs-dot present"></span><span class="rs-num" id="rsPresent">0</span> Present</div>
-        <div class="rs-item"><span class="rs-dot halfday"></span><span class="rs-num" id="rsHalf">0</span> Half Day</div>
-        <div class="rs-item"><span class="rs-dot short"></span><span class="rs-num" id="rsShort">0</span> Short Hours</div>
-        <div class="rs-item rs-total"><span class="rs-num" id="rsTotal">0</span> Total records</div>
+  </div>
+  <div class="uzone" id="uzone"
+    onclick="document.getElementById('mfile').click()"
+    ondragover="event.preventDefault();this.classList.add('drag')"
+    ondragleave="this.classList.remove('drag')"
+    ondrop="onDrop(event)">
+    <div style="font-size:2rem;margin-bottom:9px">📂</div>
+    <div style="font-size:.92rem;font-weight:600;margin-bottom:4px">CSV file yahan drop karein ya click karein</div>
+    <div style="font-size:.76rem;color:var(--mu)">.csv format — Excel ko CSV mein save karke upload karein</div>
+  </div>
+  <input type="file" id="mfile" accept=".csv" style="display:none" onchange="onFile(event)">
+  <div class="ppanel" id="ppanel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;flex-wrap:wrap;gap:7px">
+      <div>
+        <div style="font-size:.88rem;font-weight:700" id="ptitle">Preview</div>
+        <div style="font-size:.75rem;color:var(--mu);margin-top:2px" id="psub"></div>
+      </div>
+      <div style="display:flex;gap:7px;align-items:center">
+        <span id="perr" style="font-size:.76rem;color:var(--rd)"></span>
+        <button class="btn bg" onclick="confirmUp()">✅ Import Confirm</button>
+        <button class="btn bk" onclick="cancelUp()">Cancel</button>
       </div>
     </div>
-
-    <div class="chart-panel">
-      <div class="chart-head">
-        <div>
-          <div class="chart-title">Date-wise Attendance</div>
-          <div class="chart-sub" id="chartSub">Stacked bars: Present + Half Day + Short Hours</div>
-        </div>
-        <div class="chart-legend">
-          <span><i class="lg present"></i>Present</span>
-          <span><i class="lg halfday"></i>Half Day</span>
-          <span><i class="lg short"></i>Short Hours</span>
-        </div>
-      </div>
-      <div class="chart-scroll"><svg id="barChart"></svg></div>
+    <div class="tw" style="max-height:260px">
+      <table><thead id="phead"></thead><tbody id="pbody"></tbody></table>
     </div>
-
-    <div class="table-wrap">
+  </div>
+  <div class="mlist">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;flex-wrap:wrap;gap:7px">
+      <div style="font-size:.83rem;font-weight:700">Master Records (<span id="mcnt">0</span>)</div>
+      <div style="display:flex;gap:7px;align-items:center">
+        <input class="fi sel" id="msrch" style="width:190px;padding:6px 10px" placeholder="Search..." oninput="renderM()">
+        <button class="btn bp" onclick="openAddM()">+ Add</button>
+      </div>
+    </div>
+    <div class="tw" style="max-height:360px">
       <table>
-        <thead>
-          <tr>
-            <th>Employee</th>
-            <th>Warehouse</th>
-            <th>Shift Date</th>
-            <th>Shift</th>
-            <th>First Punch</th>
-            <th>Last Punch</th>
-            <th>Punch Timeline</th>
-            <th>Hours</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
+        <thead><tr><th>#</th><th>Emp ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Mobile</th><th>Action</th></tr></thead>
+        <tbody id="mtbody"></tbody>
       </table>
     </div>
   </div>
-  <footer>Day Shift window: first punch 7:30 AM–7:29 PM &middot; Night Shift window: first punch 7:30 PM–7:29 AM (next day) &middot; Hours &gt; 9 = Present &middot; Hours &lt; 5 = Half Day</footer>
 </div>
-<div class="toast" id="toast"></div>
+</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<!-- ═══ LINKS TAB ═══ -->
+<div id="pg-links" class="pg">
+<div class="wrap">
+  <div style="margin-bottom:18px">
+    <h2 style="font-size:1rem;font-weight:700;margin-bottom:5px">Share Links</h2>
+    <p style="font-size:.78rem;color:var(--mu);line-height:1.6">
+      Scanner links — location name embed hoga. Viewer links — department managers ko do for read-only dashboard.
+    </p>
+  </div>
+  <div class="lgrid">
+    <div class="lcard">
+      <h3>🔲 Scanner Links</h3>
+      <p>Har location ke liye alag scanner link. Sirf location name URL mein hoga — koi data nahi.</p>
+      <div style="margin-bottom:11px">
+        <label style="font-size:.73rem;color:var(--mu);display:block;margin-bottom:4px">Location Name</label>
+        <div style="display:flex;gap:7px">
+          <input id="linp" class="fi" placeholder="Gate-A, Canteen..." style="flex:1">
+          <button class="btn bc" onclick="genScan()">Generate</button>
+        </div>
+      </div>
+      <div id="scan-links" class="dlinks"></div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bd)">
+        <div style="font-size:.76rem;color:var(--mu);margin-bottom:7px;font-weight:600">Manual Sync (alag device ke liye):</div>
+        <p style="font-size:.73rem;color:var(--mu);margin-bottom:7px;line-height:1.5">
+          Scanner device pe master data nahi hai? Admin se yeh CSV download karke scanner pe import karo.
+        </p>
+        <button class="btn ba" onclick="dlMaster()">📥 Master Data CSV Export</button>
+      </div>
+    </div>
+    <div class="lcard">
+      <h3>👁 Viewer Links (Read-Only)</h3>
+      <p>Department managers ko do — full dashboard dikhega with filters. Scan/delete nahi kar sakte.</p>
+      <button class="btn bp" onclick="genView()" style="margin-bottom:11px">🔄 Links Refresh</button>
+      <div style="font-size:.73rem;color:var(--mu);margin-bottom:5px">All departments viewer:</div>
+      <div class="lbox2" id="alvlink" onclick="cpTxt(this.textContent)">— Generate karo —</div>
+      <div style="font-size:.76rem;color:var(--mu);margin-bottom:7px;font-weight:600;margin-top:11px">Department-wise links:</div>
+      <div class="dlinks" id="view-links"></div>
+    </div>
+    <div class="lcard" style="grid-column:1/-1">
+      <h3>📖 Kaise Use Karein</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:10px">
+        <div style="background:var(--bg);border-radius:9px;padding:13px">
+          <div style="font-size:.8rem;font-weight:700;color:var(--gn);margin-bottom:5px">1. Admin (Aap)</div>
+          <div style="font-size:.75rem;color:var(--mu);line-height:1.6">Master Data upload karo → Scanner links generate karo → Share karo</div>
+        </div>
+        <div style="background:var(--bg);border-radius:9px;padding:13px">
+          <div style="font-size:.8rem;font-weight:700;color:var(--cy);margin-bottom:5px">2. Scanner Device</div>
+          <div style="font-size:.75rem;color:var(--mu);line-height:1.6">Same browser = Auto sync. Alag device = Admin se Master CSV lo, Scanner pe import karo</div>
+        </div>
+        <div style="background:var(--bg);border-radius:9px;padding:13px">
+          <div style="font-size:.8rem;font-weight:700;color:var(--pu);margin-bottom:5px">3. Viewer</div>
+          <div style="font-size:.75rem;color:var(--mu);line-height:1.6">Viewer link se full dashboard — date, shift, dept filter — sirf read-only</div>
+        </div>
+        <div style="background:var(--bg);border-radius:9px;padding:13px">
+          <div style="font-size:.8rem;font-weight:700;color:var(--am);margin-bottom:5px">4. Data Combine</div>
+          <div style="font-size:.75rem;color:var(--mu);line-height:1.6">Ek hi device pe sab tabs kholo = auto combine. Alag device = CSV export → Admin pe import</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GOOGLE SHEETS SETTINGS CARD -->
+  <div class="lcard" style="grid-column:1/-1;margin-top:4px">
+    <h3>📊 Google Sheets Integration</h3>
+    <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:9px;padding:12px 15px;font-size:.76rem;color:var(--mu);line-height:1.8;margin-bottom:14px">
+      <b style="color:var(--am)">Setup (5 min):</b>
+      1. Google Sheet banao → Extensions → Apps Script<br>
+      2. <a href="#" onclick="showGSCodeModal();return false;" style="color:var(--cy)">Yahan se code copy karo</a> → paste karo → Deploy → New Deployment → Web App → <b style="color:var(--tx)">Anyone</b> access → Deploy<br>
+      3. URL copy karke neeche paste karo → Save karo — ab har scan automatically sheet mein save hoga ✅
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:9px;align-items:end;margin-bottom:11px">
+      <div>
+        <label style="font-size:.73rem;color:var(--mu);display:block;margin-bottom:4px">Apps Script Web App URL</label>
+        <input id="gs-url" class="fi" placeholder="https://script.google.com/macros/s/AKfy.../exec" style="width:100%">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <button class="btn bc" onclick="saveGS()">💾 Save</button>
+        <button class="btn bk" style="font-size:.72rem" onclick="testGS()">Test</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+      <div style="flex:1;min-width:140px">
+        <label style="font-size:.73rem;color:var(--mu);display:block;margin-bottom:4px">Sheet Name</label>
+        <input id="gs-sheet" class="fi" value="Attendance" placeholder="Attendance">
+      </div>
+      <div style="flex:1;min-width:140px">
+        <label style="font-size:.73rem;color:var(--mu);display:block;margin-bottom:4px">Company Name</label>
+        <input id="gs-company" class="fi" placeholder="My Company">
+      </div>
+    </div>
+    <div id="gs-status" style="margin-top:10px;font-size:.76rem;color:var(--mu)"></div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- GS CODE MODAL -->
+<div class="ov" id="gsmod">
+  <div class="modal" style="max-width:560px">
+    <h3 style="color:var(--cy)">📋 Google Apps Script Code</h3>
+    <div style="font-size:.74rem;color:var(--mu);margin-bottom:9px;line-height:1.6">Ye code Google Apps Script mein paste karo → Deploy as Web App (Anyone access) → URL copy karo</div>
+    <div style="background:var(--bg);border:1px solid var(--bd);border-radius:7px;padding:11px;font-size:.7rem;font-family:monospace;line-height:1.6;overflow-x:auto;white-space:pre;max-height:320px;overflow-y:auto" id="gs-code-box"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn bc" onclick="copyGSCode()">📋 Code Copy</button>
+      <button class="btn bk" onclick="g('gsmod').classList.remove('on')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ VIEWER MODE ═══ -->
+<div id="vmode" style="display:none">
+<div class="wrap">
+  <div class="vhdr">
+    <div>
+      <h2 id="vtitle">Attendance Viewer</h2>
+      <p id="vsub" style="font-size:.78rem;color:var(--mu);margin-top:3px">Read-only dashboard</p>
+    </div>
+    <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:.73rem;color:var(--mu)">Date<br><input type="date" id="vdate" class="fi" style="margin-top:3px" onchange="renderV()"></label>
+      <label style="font-size:.73rem;color:var(--mu)">Shift<br><select id="vsh" class="sel fi" style="margin-top:3px;padding:7px" onchange="renderV()"><option value="">Dono</option><option value="Day">Day ☀</option><option value="Night">Night 🌙</option></select></label>
+      <label style="font-size:.73rem;color:var(--mu)">Location<br><select id="vloc" class="sel fi" style="margin-top:3px;padding:7px" onchange="renderV()"><option value="">Sab Locations</option></select></label>
+      <button class="btn bg" onclick="dlV()">⬇ CSV Export</button>
+    </div>
+  </div>
+  <!-- Viewer stats -->
+  <div class="sgrid" id="vstats" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))"></div>
+  <!-- Dept pills -->
+  <div class="dpills" id="vpills"></div>
+  <!-- Chart -->
+  <div class="cpanel" id="vcpanel">
+    <h2>Department-wise Chart</h2>
+    <div class="cw"><canvas id="vchart"></canvas></div>
+  </div>
+  <!-- Table -->
+  <div class="tpanel">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px">
+      <div class="ptitle">Records</div>
+      <span style="font-size:.75rem;color:var(--mu)" id="vrcount"></span>
+    </div>
+    <div class="tw">
+      <table>
+        <thead><tr>
+          <th>#</th><th>Emp ID</th><th>Name</th><th>Department</th>
+          <th>Location</th><th>Date</th><th>Shift</th><th>Punch IN ✅</th><th>Punch OUT 🔴</th><th>Duration</th>
+        </tr></thead>
+        <tbody id="vtbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyBDUq16Up3XopcBwPk8UQ2t5wgTlDMXKYg",
-  authDomain: "attendance-emiza.firebaseapp.com",
-  databaseURL: "https://attendance-emiza-default-rtdb.firebaseio.com/",
-  projectId: "attendance-emiza",
-  storageBucket: "attendance-emiza.firebasestorage.app",
-  messagingSenderId: "84536914545",
-  appId: "1:84536914545:web:759eaeb06295808a4ea1d0"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+// ══════════════════════════════════════
+// STORAGE — same keys everywhere
+// ══════════════════════════════════════
+const SK='att_v5', MK='mast_v5', GSK='gs_settings_v1';
+const gS = k => { try{return JSON.parse(localStorage.getItem(k))||(k===MK?{}:[]);}catch{return k===MK?{}:[];} };
+const sS = (k,v) => { try{localStorage.setItem(k,JSON.stringify(v));}catch(e){} };
 
-const ADMIN_KEY = 'wms2026admin';
-const urlParams = new URLSearchParams(window.location.search);
-const IS_ADMIN = urlParams.get('admin') === ADMIN_KEY;
+let recs = gS(SK);
+let mdir = gS(MK);
+let filt = [];
+let pdata = [];
+let dch = null, vch = null;
+let editId = null;
 
-let rawRecords = [];
-let currentFiltered = [];
+// GS Settings
+let gsSettings = {};
+try { gsSettings = JSON.parse(localStorage.getItem(GSK)) || {}; } catch(e) { gsSettings = {}; }
 
-const el = id => document.getElementById(id);
+// ══════════════════════════════════════
+// URL PARAMS
+// ══════════════════════════════════════
+const UP   = new URLSearchParams(location.search);
+const MODE = UP.get('mode') || 'admin';
+const LOC  = UP.get('loc')  || '';
+const DEPT = UP.get('dept') || '';
 
-function showToast(msg){
-  const t = el('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 2600);
-}
+// ══════════════════════════════════════
+// GOOGLE SHEETS
+// ══════════════════════════════════════
+const GS_CODE = `function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheetName = data.sheet || 'Attendance';
+    var sheet = ss.getSheetByName(sheetName);
+    if (!sheet) { sheet = ss.insertSheet(sheetName); }
 
-function applyAccessMode(){
-  if(IS_ADMIN){
-    el('uploadControls').style.display = 'flex';
-    el('adminBadge').style.display = 'flex';
-    el('emptyStateBtn').style.display = 'inline-flex';
-    el('emptyStateText').textContent = 'Upload the raw punch-log CSV (columns: Warehouse Name, Employee Code, Employee Name, Log Time, etc.). The dashboard will group punches per employee per day, classify Day / Night shift, and calculate hours automatically.';
-  } else {
-    el('uploadControls').style.display = 'none';
-    el('viewOnlyBadge').style.display = 'flex';
-    el('emptyStateBtn').style.display = 'none';
-    el('emptyStateText').textContent = 'No attendance data has been uploaded yet. Please check back once the admin has uploaded the latest punch-log.';
-  }
-}
-
-/* ---------- DATE/TIME HELPERS ---------- */
-function parseLogTime(str){
-  if(!str) return null;
-  str = String(str).trim();
-  if(!str) return null;
-  let m = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})[ T](\d{1,2}):(\d{2})(:(\d{2}))?/);
-  if(m) return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], m[7]?+m[7]:0);
-  m = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})[ ,]+(\d{1,2}):(\d{2})(:(\d{2}))?\s*(AM|PM|am|pm)?/);
-  if(m){
-    let h = +m[4];
-    const ap = m[8] ? m[8].toUpperCase() : null;
-    if(ap === 'PM' && h < 12) h += 12;
-    if(ap === 'AM' && h === 12) h = 0;
-    return new Date(+m[3], +m[2]-1, +m[1], h, +m[5], m[7]?+m[7]:0);
-  }
-  const d = new Date(str);
-  return isNaN(d.getTime()) ? null : d;
-}
-function pad(n){return n.toString().padStart(2,'0');}
-function fmtDate(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
-function fmtTime(d){
-  let h = d.getHours(), m = d.getMinutes();
-  const ap = h >= 12 ? 'PM' : 'AM';
-  let h12 = h % 12; if(h12===0) h12=12;
-  return `${pad(h12)}:${pad(m)} ${ap}`;
-}
-function minutesOfDay(d){return d.getHours()*60 + d.getMinutes();}
-const DAY_START = 7*60+30;
-const DAY_START_H = 7, DAY_START_M = 30;
-const NIGHT_START = 19*60+30;
-
-/* ---------- CORE PROCESSING ---------- */
-function processRows(rows){
-  const punches = [];
-  let unparsedCount = 0;
-  rows.forEach(r=>{
-    const logTimeRaw = r['Log Time'] || r['LogTime'] || r['Log time'] || r['log time'];
-    const logTime = parseLogTime(logTimeRaw);
-    if(!logTime){ if(logTimeRaw && String(logTimeRaw).trim()) unparsedCount++; return; }
-    const empCode = (r['Employee Code']||r['EmployeeCode']||'').toString().trim();
-    const empName = (r['Employee Name']||r['EmployeeName']||'').toString().trim();
-    punches.push({
-      empCode, empName,
-      groupKey: (empCode || empName).toString().trim().toLowerCase().replace(/\s+/g,' '),
-      warehouse: (r['Warehouse Name']||r['WarehouseName']||'').toString().trim(),
-      vendor: (r['Vendor']||'').toString().trim(),
-      department: (r['Department']||'').toString().trim(),
-      dt: logTime
-    });
-  });
-  window.__lastUnparsedCount = unparsedCount;
-  const byEmp = {};
-  punches.forEach(p=>{ if(!byEmp[p.groupKey]) byEmp[p.groupKey]=[]; byEmp[p.groupKey].push(p); });
-  Object.values(byEmp).forEach(arr=>arr.sort((a,b)=>a.dt-b.dt));
-  const sessions = [];
-  Object.entries(byEmp).forEach(([key, arr])=>{
-    let i = 0;
-    while(i < arr.length){
-      const first = arr[i];
-      const mod = minutesOfDay(first.dt);
-      let shiftType = null, windowEnd = null;
-      if(mod >= DAY_START && mod < NIGHT_START){
-        shiftType = 'Day';
-        windowEnd = new Date(first.dt.getFullYear(), first.dt.getMonth(), first.dt.getDate()+1, 0,0,0);
-      } else if(mod >= NIGHT_START){
-        shiftType = 'Night';
-        windowEnd = new Date(first.dt.getFullYear(), first.dt.getMonth(), first.dt.getDate()+1, DAY_START_H, DAY_START_M, 0);
-      } else {
-        shiftType = 'Night';
-        windowEnd = new Date(first.dt.getFullYear(), first.dt.getMonth(), first.dt.getDate(), DAY_START_H, DAY_START_M, 0);
-      }
-      let j = i, last = first;
-      while(j < arr.length && arr[j].dt < windowEnd){ last = arr[j]; j++; }
-      const hoursDecimal = (last.dt - first.dt) / 3600000;
-      let status, statusClass;
-      if(hoursDecimal > 9){ status='Present'; statusClass='present'; }
-      else if(hoursDecimal < 5){ status='Half Day'; statusClass='halfday'; }
-      else { status='Short Hours'; statusClass='short'; }
-      sessions.push({
-        empCode: first.empCode, empName: first.empName,
-        warehouse: first.warehouse, vendor: first.vendor, department: first.department,
-        shiftDate: fmtDate(first.dt), shiftType,
-        firstPunch: first.dt, lastPunch: last.dt,
-        hours: hoursDecimal, punchCount: j - i,
-        status, statusClass
-      });
-      i = j;
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(['Emp ID','Name','Department','Designation','Mobile','Date','Shift','Location','Punch IN','Punch OUT','Duration','Saved At']);
+      sheet.getRange(1,1,1,12).setFontWeight('bold').setBackground('#06B6D4').setFontColor('#000');
     }
+
+    function fT(iso) {
+      if (!iso) return '';
+      return Utilities.formatDate(new Date(iso), Session.getScriptTimeZone(), 'HH:mm');
+    }
+    function dur(i, o) {
+      if (!i || !o) return '';
+      var ms = new Date(o) - new Date(i);
+      if (ms <= 0) return '';
+      return Math.floor(ms/3600000)+'h '+Math.floor((ms%3600000)/60000)+'m';
+    }
+
+    if (data.action === 'punch') {
+      var r = data.record;
+      // Find existing row for this emp+date+shift
+      var lastRow = sheet.getLastRow();
+      var found = -1;
+      if (lastRow > 1) {
+        var ids = sheet.getRange(2, 1, lastRow-1, 1).getValues();
+        var dates = sheet.getRange(2, 6, lastRow-1, 1).getValues();
+        var shifts = sheet.getRange(2, 7, lastRow-1, 1).getValues();
+        for (var i = 0; i < ids.length; i++) {
+          if (ids[i][0] == r.empId && dates[i][0] == r.date && shifts[i][0] == r.shift) { found = i+2; break; }
+        }
+      }
+      var emp = data.emp || {};
+      if (found === -1) {
+        sheet.appendRow([r.empId, r.name, r.dept, emp.designation||'', emp.mobile||'', r.date, r.shift, r.loc||'Main', fT(r.in), fT(r.out), dur(r.in,r.out), new Date().toLocaleString()]);
+      } else {
+        sheet.getRange(found, 9).setValue(fT(r.in));
+        sheet.getRange(found, 10).setValue(fT(r.out));
+        sheet.getRange(found, 11).setValue(dur(r.in,r.out));
+        sheet.getRange(found, 12).setValue(new Date().toLocaleString());
+      }
+    }
+
+    if (data.action === 'bulkSync') {
+      // Clear old data and re-write all
+      var lastRow2 = sheet.getLastRow();
+      if (lastRow2 > 1) sheet.deleteRows(2, lastRow2-1);
+      data.records.forEach(function(r) {
+        var emp2 = data.mdir ? (data.mdir[r.empId] || {}) : {};
+        sheet.appendRow([r.empId, r.name, r.dept, emp2.designation||'', emp2.mobile||'', r.date, r.shift, r.loc||'Main', fT(r.in), fT(r.out), dur(r.in,r.out), new Date().toLocaleString()]);
+      });
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({status:'ok',rows:sheet.getLastRow()})).setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({status:'error',message:err.toString()})).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({status:'ok',message:'Attendance Pro API Ready'})).setMimeType(ContentService.MimeType.JSON);
+}`;
+
+function showGSCodeModal() {
+  g('gs-code-box').textContent = GS_CODE;
+  g('gsmod').classList.add('on');
+}
+function copyGSCode() {
+  navigator.clipboard.writeText(GS_CODE).then(() => toast('Code copy ho gaya! Apps Script mein paste karo.','ok')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=GS_CODE;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Code copied!','ok');
   });
-  sessions.sort((a,b)=>{
-    if(a.shiftDate !== b.shiftDate) return b.shiftDate.localeCompare(a.shiftDate);
-    return (a.empName||'').localeCompare(b.empName||'');
-  });
-  return sessions;
+}
+function saveGS() {
+  const url = g('gs-url') ? g('gs-url').value.trim() : '';
+  const sheet = g('gs-sheet') ? g('gs-sheet').value.trim() : 'Attendance';
+  const company = g('gs-company') ? g('gs-company').value.trim() : '';
+  if (!url) { toast('URL daalo pehle!','wa'); return; }
+  gsSettings = {url, sheet: sheet||'Attendance', company};
+  localStorage.setItem(GSK, JSON.stringify(gsSettings));
+  const el=g('gs-status'); if(el) el.innerHTML='<span style="color:var(--gn)">✅ Saved! Har scan automatically Google Sheet mein jayega.</span>';
+  toast('Google Sheets settings saved!','ok');
+}
+function testGS() {
+  const url = g('gs-url') ? g('gs-url').value.trim() : (gsSettings.url||'');
+  if (!url) { toast('Pehle URL daalo','wa'); return; }
+  toast('Test request bheji ja rahi hai...','ok');
+  fetch(url, {method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'test'})})
+    .then(()=>{ const el=g('gs-status'); if(el) el.innerHTML='<span style="color:var(--gn)">✅ Request bheji gayi (no-cors mode) — Apps Script execution log check karo</span>'; toast('Test request sent!','ok'); })
+    .catch(e=>{ toast('Error: '+e.message,'wa'); });
 }
 
-/* ---------- RENDER TIMELINE ---------- */
-function renderTimeline(session){
-  let winStartMin, winTotalMin;
-  if(session.shiftType === 'Day'){ winStartMin = DAY_START; winTotalMin = NIGHT_START - DAY_START; }
-  else { winStartMin = NIGHT_START; winTotalMin = (24*60 - NIGHT_START) + DAY_START; }
-  const dayBase = new Date(session.firstPunch.getFullYear(), session.firstPunch.getMonth(), session.firstPunch.getDate());
-  function minsFromWinStart(dt){
-    let diffMin = Math.round((dt - dayBase)/60000) - winStartMin;
-    if(diffMin < 0) diffMin += 24*60;
-    return diffMin;
-  }
-  let startPos = minsFromWinStart(session.firstPunch);
-  let endPos = minsFromWinStart(session.lastPunch);
-  if(endPos < startPos) endPos = startPos;
-  const pct = (m)=> Math.max(0, Math.min(100, (m/winTotalMin)*100));
-  const left = pct(startPos);
-  const width = Math.max(pct(endPos)-pct(startPos), 1.5);
-  const cls = session.shiftType === 'Day' ? 'day' : 'night';
-  return `<div class="timeline" title="${fmtTime(session.firstPunch)} → ${fmtTime(session.lastPunch)}">
-    <div class="bar ${cls}" style="left:${left}%; width:${width}%;"></div>
-  </div>`;
-}
-
-/* ---------- BAR CHART ---------- */
-function drawBarChart(records){
-  const svg = el('barChart');
-  const scrollWrap = svg.parentElement;
-  if(records.length === 0){
-    svg.setAttribute('viewBox','0 0 600 200');
-    svg.innerHTML = `<text x="300" y="100" text-anchor="middle" fill="var(--text-dim)" font-size="13" font-family="Inter">No records to chart for current filters.</text>`;
-    svg.style.width = '100%'; svg.style.height = '200px'; return;
-  }
-  const byDate = {};
-  records.forEach(s=>{
-    if(!byDate[s.shiftDate]) byDate[s.shiftDate] = {present:0, halfday:0, short:0};
-    if(s.status === 'Present') byDate[s.shiftDate].present++;
-    else if(s.status === 'Half Day') byDate[s.shiftDate].halfday++;
-    else byDate[s.shiftDate].short++;
-  });
-  const dates = Object.keys(byDate).sort();
-  const barW = 34, gap = 18;
-  const leftPad = 46, rightPad = 16, topPad = 18, bottomPad = 34;
-  const chartW = dates.length * (barW + gap) + leftPad + rightPad;
-  const maxTotal = Math.max(...dates.map(d => byDate[d].present + byDate[d].halfday + byDate[d].short), 1);
-  const chartH = 260, plotH = chartH - topPad - bottomPad;
-  const steps = 4;
-  let svgParts = [];
-  for(let i=0; i<=steps; i++){
-    const val = Math.round((maxTotal/steps)*i);
-    const y = topPad + plotH - (val/maxTotal)*plotH;
-    svgParts.push(`<line x1="${leftPad}" y1="${y}" x2="${chartW-rightPad}" y2="${y}" class="bar-grid-line"/>`);
-    svgParts.push(`<text x="${leftPad-10}" y="${y+3}" text-anchor="end" class="bar-axis-label">${val}</text>`);
-  }
-  dates.forEach((d, idx)=>{
-    const x = leftPad + idx*(barW+gap);
-    const { present, halfday, short } = byDate[d];
-    const total = present + halfday + short;
-    let yCursor = topPad + plotH;
-    [{val:present,cls:'present'},{val:halfday,cls:'halfday'},{val:short,cls:'short'}].forEach(seg=>{
-      if(seg.val <= 0) return;
-      const h = (seg.val/maxTotal)*plotH;
-      const y = yCursor - h;
-      svgParts.push(`<rect class="bar-seg ${seg.cls}" x="${x}" y="${y}" width="${barW}" height="${Math.max(h,0)}" rx="3"><title>${d} — ${seg.cls==='present'?'Present':seg.cls==='halfday'?'Half Day':'Short Hours'}: ${seg.val}</title></rect>`);
-      yCursor = y;
+async function sendToGS(rec) {
+  if (!gsSettings.url) return;
+  try {
+    const emp = mdir[rec.empId] || {};
+    await fetch(gsSettings.url, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'punch', record:rec, emp, sheet: gsSettings.sheet||'Attendance'})
     });
-    const topY = topPad + plotH - (total/maxTotal)*plotH;
-    svgParts.push(`<text x="${x+barW/2}" y="${topY-6}" text-anchor="middle" class="bar-total-label">${total}</text>`);
-    svgParts.push(`<text x="${x+barW/2}" y="${chartH-12}" text-anchor="middle" class="bar-axis-label">${d.slice(5)}</text>`);
-  });
-  svgParts.push(`<line x1="${leftPad}" y1="${topPad+plotH}" x2="${chartW-rightPad}" y2="${topPad+plotH}" class="bar-grid-line"/>`);
-  svg.setAttribute('viewBox', `0 0 ${chartW} ${chartH}`);
-  svg.style.width = Math.max(chartW, scrollWrap.clientWidth) + 'px';
-  svg.style.height = chartH + 'px';
-  svg.innerHTML = svgParts.join('');
+  } catch(e) { console.warn('GS send failed', e); }
 }
 
-/* ---------- MAIN RENDER ---------- */
-function render(){
-  const codeF    = el('codeFilter').value.trim().toLowerCase();
-  const nameF    = el('nameFilter').value.trim().toLowerCase();
-  const dateFrom = el('dateFromFilter').value;
-  const dateTo   = el('dateToFilter').value;
-  const warehouseF = el('warehouseFilter').value;   // ← NEW
-  const shiftF   = el('shiftFilter').value;
-  const deptF    = el('departmentFilter').value;
-  const statusF  = el('statusFilter').value;
+async function doBulkSync() {
+  if (!gsSettings.url) { toast('GS URL nahi set — Links tab mein karo','wa'); return; }
+  try {
+    await fetch(gsSettings.url, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'bulkSync', records:recs, mdir, sheet: gsSettings.sheet||'Attendance'})
+    });
+    toast('Sab data Google Sheets mein sync ho gaya!','ok');
+  } catch(e) { toast('Sync error: '+e.message,'wa'); }
+}
 
-  const filtered = rawRecords.filter(s=>{
-    if(codeF && !(s.empCode||'').toLowerCase().includes(codeF)) return false;
-    if(nameF && !(s.empName||'').toLowerCase().includes(nameF)) return false;
-    if(dateFrom && s.shiftDate < dateFrom) return false;
-    if(dateTo && s.shiftDate > dateTo) return false;
-    if(warehouseF && (s.warehouse||'Unknown').trim() !== warehouseF) return false;  // ← NEW
-    if(shiftF && s.shiftType !== shiftF) return false;
-    if(deptF && (s.department || 'Unassigned') !== deptF) return false;
-    if(statusF && s.status !== statusF) return false;
-    return true;
+function loadGSForm() {
+  if (g('gs-url') && gsSettings.url) g('gs-url').value = gsSettings.url;
+  if (g('gs-sheet') && gsSettings.sheet) g('gs-sheet').value = gsSettings.sheet;
+  if (g('gs-company') && gsSettings.company) g('gs-company').value = gsSettings.company;
+  if (gsSettings.url && g('gs-status')) g('gs-status').innerHTML='<span style="color:var(--gn)">✅ Google Sheets connected: '+gsSettings.sheet+'</span>';
+}
+
+// ══════════════════════════════════════
+// INIT
+// ══════════════════════════════════════
+(function init(){
+  const badge = document.getElementById('mbadge');
+  const tabs  = document.getElementById('tabs');
+  const lp    = document.getElementById('lpill');
+
+  if (MODE === 'scan') {
+    badge.className = 'mbadge mscan'; badge.textContent = '🔲 Scanner — ' + (LOC||'');
+    document.getElementById('htitle').textContent = 'Scanner' + (LOC ? ' — '+LOC : '');
+    if (LOC) { lp.style.display='inline'; lp.textContent = '📍 '+LOC; }
+    tabs.style.display = 'none';
+    document.getElementById('pg-att').classList.add('on');
+    document.getElementById('clrAllBtn').style.display = 'none';
+    const bar = document.getElementById('mbar');
+    if (Object.keys(mdir).length > 0) {
+      bar.className = 'mbar ok';
+      bar.textContent = '✅ Master ready — ' + Object.keys(mdir).length + ' employees';
+    } else {
+      bar.className = 'mbar er';
+      bar.textContent = '⚠ Master Data nahi mila — Admin se CSV lo aur import karo';
+      document.getElementById('syncbtn').style.display = 'block';
+    }
+
+  } else if (MODE === 'view') {
+    badge.className = 'mbadge mview'; badge.textContent = '👁 Viewer';
+    tabs.style.display = 'none';
+    document.getElementById('pg-att').classList.remove('on');
+    document.getElementById('vmode').style.display = 'block';
+    document.getElementById('vdate').value = dStr(new Date());
+    document.getElementById('vtitle').textContent = DEPT ? DEPT+' — Attendance Dashboard' : 'Full Attendance Dashboard';
+    document.getElementById('vsub').textContent   = DEPT ? 'Sirf '+DEPT+' department | Read-only' : 'Sab departments | Read-only';
+    vdept = DEPT;
+    renderV();
+    const rb2 = document.getElementById('refresh-badge');
+    if (rb2) { rb2.style.display='inline'; rb2.textContent='🔄 Auto Refresh: 15s'; }
+    // AUTO REFRESH every 15 seconds in viewer
+    setInterval(() => { recs = gS(SK); renderV(); }, 15000);
+
+  } else {
+    // ADMIN mode
+    badge.className = 'mbadge madmin'; badge.textContent = '⚙ Admin';
+    loadGSForm();
+    const rb = document.getElementById('refresh-badge');
+    if (rb) rb.style.display = 'inline';
+    // AUTO REFRESH admin dashboard every 10 seconds
+    setInterval(() => {
+      recs = gS(SK);
+      mdir = gS(MK);
+      refreshDepts();
+      doFilter();
+      updStats();
+    }, 10000);
+  }
+
+  if (MODE !== 'view') {
+    document.getElementById('fdate').value = dStr(new Date());
+    refreshDepts();
+    doFilter();
+  }
+})();
+
+// ══════════════════════════════════════
+// CLOCK
+// ══════════════════════════════════════
+setInterval(() => {
+  document.getElementById('clk').textContent = new Date().toLocaleTimeString('hi-IN',{hour12:false});
+}, 1000);
+
+// ══════════════════════════════════════
+// TABS
+// ══════════════════════════════════════
+function showTab(name, el) {
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('pg-'+name).classList.add('on');
+  el.classList.add('on');
+  if (name==='master') renderM();
+  if (name==='links')  genView();
+}
+
+// ══════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════
+function dStr(d) { return d.toISOString().slice(0,10); }
+function shift(d) { const m=d.getHours()*60+d.getMinutes(); return (m>=19*60+30||m<7*60+30)?'Night':'Day'; }
+function fT(iso) { if(!iso)return'—'; return new Date(iso).toLocaleTimeString('hi-IN',{hour12:false,hour:'2-digit',minute:'2-digit'}); }
+function dur(i,o) {
+  if(!i||!o) return '—';
+  const ms=new Date(o)-new Date(i);
+  if(ms<=0) return '—';
+  return Math.floor(ms/3600000)+'h '+Math.floor((ms%3600000)/60000)+'m';
+}
+function sBadge(s) { return '<span class="badge '+(s==='Day'?'bd2':'bn')+'">'+s+'</span>'; }
+function chip(t) { return '<span style="background:var(--sf2);border-radius:4px;padding:1px 7px;font-size:.72rem">'+t+'</span>'; }
+function g(id) { return document.getElementById(id); }
+
+// Scanner sees only its own location; admin/viewer sees all
+function baseR() {
+  if (MODE==='scan' && LOC) return recs.filter(r=>r.loc===LOC);
+  return recs;
+}
+
+// ══════════════════════════════════════
+// SCAN
+// ══════════════════════════════════════
+function doScan() {
+  const raw = g('sinp').value.trim();
+  if (!raw) return;
+  const id  = raw.toUpperCase();
+  const now = new Date();
+  const dt  = dStr(now);
+  const sh  = shift(now);
+  const loc = LOC || 'Main';
+  const emp = mdir[id];
+  const dept = emp ? emp.dept : (g('dsel').value || 'Unknown');
+  const name = emp ? emp.name : (g('enm').value.trim() || id);
+
+  if (!emp) { mdir[id]={name,dept,designation:'',mobile:''}; sS(MK,mdir); refreshDepts(); }
+
+  let sess = recs.find(r => r.empId===id && r.date===dt && r.shift===sh && !r.out);
+  if (!sess) {
+    sess = {empId:id,name,dept,date:dt,shift:sh,loc,in:now.toISOString(),out:null};
+    recs.push(sess);
+    anim('go'); showLast(sess,'IN');
+    toast('✅ PUNCH IN — '+name+' ('+dept+') | '+sh+' @ '+loc,'ok');
+  } else if (!sess.out) {
+    sess.out = now.toISOString(); sess.outLoc = loc;
+    anim('wa'); showLast(sess,'OUT');
+    toast('🔴 PUNCH OUT — '+name+' | '+dur(sess.in,sess.out),'ok');
+  } else {
+    toast('⚠ '+name+' — Already IN & OUT ('+sh+' Shift)','wa');
+    anim('wa');
+  }
+
+  sS(SK,recs);
+  sendToGS(sess); // ← Google Sheets pe automatically save
+  g('sinp').value=''; g('enm').value=''; g('sinp').focus();
+  doFilter();
+}
+
+function anim(cls) {
+  const ring=g('sring'), ico=g('sico'), stat=g('sstat');
+  ring.className='sring an'; ico.textContent='📡';
+  stat.className='sstatus'; stat.textContent='Processing...';
+  setTimeout(()=>{
+    ring.className='sring '+cls;
+    ico.textContent=cls==='go'?'✅':'🔴';
+    stat.className='sstatus '+(cls==='go'?'ok':'wa');
+    stat.textContent=cls==='go'?'Punch IN Done!':'Punch OUT Done!';
+    setTimeout(()=>{ring.className='sring';ico.textContent='🪪';stat.className='sstatus';stat.textContent='Card ID scan karein ya type karein';},2400);
+  },600);
+}
+
+function showLast(s,type) {
+  const b=g('lbox'); b.className='lbox on';
+  b.innerHTML=
+    '<div><span class="k">ID: </span><b>'+s.empId+'</b> | <span class="k">Name: </span>'+s.name+'</div>'+
+    '<div><span class="k">Dept: </span>'+s.dept+' | <span class="k">Shift: </span>'+sBadge(s.shift)+'</div>'+
+    '<div><span class="k">IN: </span>'+fT(s.in)+' | <span class="k">OUT: </span>'+fT(s.out)+'</div>'+
+    '<div style="margin-top:3px"><span class="badge '+(type==='IN'?'bi':'bo')+'">'+type+'</span></div>';
+}
+
+// ══════════════════════════════════════
+// FILTERS + TABLE
+// ══════════════════════════════════════
+function doFilter() {
+  const loc  = g('floc')  ? g('floc').value  : '';
+  const dept = g('fd')   ? g('fd').value   : '';
+  const date = g('fdate')? g('fdate').value : '';
+  const sh   = g('fsh')  ? g('fsh').value  : '';
+  const pt   = g('fpt')  ? g('fpt').value  : '';
+  const base = baseR();
+  if      (pt==='IN')  filt=base.filter(r=>(!loc||r.loc===loc)&&(!dept||r.dept===dept)&&(!date||r.date===date)&&(!sh||r.shift===sh)&&!r.out);
+  else if (pt==='OUT') filt=base.filter(r=>(!loc||r.loc===loc)&&(!dept||r.dept===dept)&&(!date||r.date===date)&&(!sh||r.shift===sh)&&!!r.out);
+  else                 filt=base.filter(r=>(!loc||r.loc===loc)&&(!dept||r.dept===dept)&&(!date||r.date===date)&&(!sh||r.shift===sh));
+  renderT(); updStats(); renderChart();
+}
+
+function clearFilt() {
+  ['floc','fd','fsh','fpt'].forEach(id=>{if(g(id))g(id).value='';});
+  if(g('fdate')) g('fdate').value = MODE==='scan'?dStr(new Date()):'';
+  filt=[...baseR()]; renderT(); updStats(); renderChart();
+}
+
+function renderT() {
+  const tb=g('atbody'); if(!tb) return;
+  if(g('rcount')) g('rcount').textContent=filt.length+' records';
+  if(!filt.length){tb.innerHTML='<tr><td colspan="10" class="nd">Koi record nahi</td></tr>';return;}
+  const sorted=[...filt].sort((a,b)=>new Date(b.in)-new Date(a.in));
+  tb.innerHTML=sorted.map((r,i)=>
+    '<tr>'+
+    '<td class="tm" style="color:var(--mu)">'+(i+1)+'</td>'+
+    '<td class="tm" style="color:var(--cy)">'+r.empId+'</td>'+
+    '<td>'+r.name+'</td>'+
+    '<td>'+chip(r.dept)+'</td>'+
+    '<td style="font-size:.76rem;color:var(--am)">📍 '+(r.loc||'Main')+'</td>'+
+    '<td class="tm" style="font-size:.76rem">'+r.date+'</td>'+
+    '<td>'+sBadge(r.shift)+'</td>'+
+    '<td class="tm" style="color:var(--gn)">'+fT(r.in)+'</td>'+
+    '<td class="tm" style="color:'+(r.out?'var(--rd)':'var(--mu)')+'">'+fT(r.out)+'</td>'+
+    '<td style="font-size:.76rem;color:var(--mu)">'+dur(r.in,r.out)+'</td>'+
+    '</tr>'
+  ).join('');
+}
+
+function updStats() {
+  const today=dStr(new Date()), base=baseR();
+  const todayR=base.filter(r=>r.date===today);
+  if(g('s-tot')) g('s-tot').textContent=base.length;
+  if(g('s-tod')) g('s-tod').textContent=todayR.length;
+  if(g('s-day')) g('s-day').textContent=base.filter(r=>r.shift==='Day').length;
+  if(g('s-ngt')) g('s-ngt').textContent=base.filter(r=>r.shift==='Night').length;
+  if(g('s-in'))  g('s-in').textContent =base.filter(r=>r.in&&!r.out).length;
+  if(g('s-out')) g('s-out').textContent=base.filter(r=>r.out).length;
+}
+
+function renderChart() {
+  const dm={};
+  filt.forEach(r=>{if(!dm[r.dept])dm[r.dept]={Day:0,Night:0};dm[r.dept][r.shift]++;});
+  const labels=Object.keys(dm);
+  const ctx=g('dchart'); if(!ctx) return;
+  if(dch) dch.destroy();
+  if(!labels.length) return;
+  dch=new Chart(ctx.getContext('2d'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Day',data:labels.map(d=>dm[d].Day),backgroundColor:'rgba(245,158,11,.7)',borderColor:'#F59E0B',borderWidth:1,borderRadius:4},
+      {label:'Night',data:labels.map(d=>dm[d].Night),backgroundColor:'rgba(129,140,248,.7)',borderColor:'#818CF8',borderWidth:1,borderRadius:4},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#E2E8F0'}},tooltip:{mode:'index',intersect:false}},
+      scales:{x:{ticks:{color:'#94A3B8'},grid:{color:'rgba(51,65,85,.5)'}},
+              y:{ticks:{color:'#94A3B8',stepSize:1},grid:{color:'rgba(51,65,85,.5)'},beginAtZero:true}}}
   });
-  currentFiltered = filtered;
+}
 
-  el('statTotal').textContent   = filtered.length;
-  el('statPresent').textContent = filtered.filter(s=>s.status==='Present').length;
-  el('statHalf').textContent    = filtered.filter(s=>s.status==='Half Day').length;
-  el('statShort').textContent   = filtered.filter(s=>s.status==='Short Hours').length;
-  el('statDay').textContent     = filtered.filter(s=>s.shiftType==='Day').length;
-  el('statNight').textContent   = filtered.filter(s=>s.shiftType==='Night').length;
-  el('filterCount').textContent = `${filtered.length} of ${rawRecords.length} records`;
-
-  // Warehouse active banner
-  const banner = el('whBanner');
-  if(warehouseF){
-    banner.classList.add('active');
-    el('whBannerName').textContent = warehouseF;
-    el('chartSub').textContent = `Showing data for warehouse: ${warehouseF}`;
-  } else {
-    banner.classList.remove('active');
-    el('chartSub').textContent = 'Stacked bars: Present + Half Day + Short Hours';
+// ══════════════════════════════════════
+// DEPT DROPDOWNS
+// ══════════════════════════════════════
+function refreshDepts() {
+  const depts=[...new Set([
+    ...Object.values(mdir).map(e=>e.dept),
+    ...recs.map(r=>r.dept)
+  ].filter(Boolean))].sort();
+  [['fd','<option value="">Sab</option>'],['dsel','<option value="">— Auto —</option>']].forEach(([id,ph])=>{
+    const el=g(id); if(!el) return;
+    const cv=el.value;
+    el.innerHTML=ph+depts.map(d=>'<option'+(d===cv?' selected':'')+'>'+d+'</option>').join('');
+  });
+  // Populate location filter (admin only)
+  const locEl=g('floc'); if(locEl){
+    const locs=[...new Set(recs.map(r=>r.loc||'Main').filter(Boolean))].sort();
+    const cv=locEl.value;
+    locEl.innerHTML='<option value="">Sab Locations</option>'+locs.map(l=>'<option'+(l===cv?' selected':'')+'>'+l+'</option>').join('');
   }
+}
 
-  const anyFilter = dateFrom || dateTo || codeF || nameF || deptF || warehouseF;
-  if(anyFilter){
-    el('rangeSummary').style.display = 'flex';
-    el('rsPresent').textContent = filtered.filter(s=>s.status==='Present').length;
-    el('rsHalf').textContent    = filtered.filter(s=>s.status==='Half Day').length;
-    el('rsShort').textContent   = filtered.filter(s=>s.status==='Short Hours').length;
-    el('rsTotal').textContent   = filtered.length;
-  } else {
-    el('rangeSummary').style.display = 'none';
+// ══════════════════════════════════════
+// CSV
+// ══════════════════════════════════════
+function csvDL(rows,name){
+  const c=rows.map(r=>r.map(x=>'"'+String(x||'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\uFEFF'+c],{type:'text/csv;charset=utf-8;'}));
+  a.download=name; a.click();
+}
+function dlCSV(){
+  if(!filt.length){toast('Koi record nahi!','wa');return;}
+  csvDL([['Emp ID','Name','Department','Date','Shift','Location','Punch IN','Punch OUT','Duration'],
+    ...filt.map(r=>[r.empId,r.name,r.dept,r.date,r.shift,r.loc||'Main',fT(r.in),fT(r.out),dur(r.in,r.out)])],
+    'attendance_'+dStr(new Date())+'.csv');
+  toast(filt.length+' records download!','ok');
+}
+function clrAll(){
+  if(!confirm('Sab attendance records delete?'))return;
+  recs=[];filt=[];sS(SK,recs);
+  if(g('lbox'))g('lbox').className='lbox';
+  renderT();updStats();renderChart();toast('Data clear','wa');
+}
+
+// ══════════════════════════════════════
+// MASTER — FILE UPLOAD
+// ══════════════════════════════════════
+function onDrop(e){e.preventDefault();g('uzone').classList.remove('drag');const f=e.dataTransfer.files[0];if(f)pFile(f);}
+function onFile(e){const f=e.target.files[0];if(f)pFile(f);e.target.value='';}
+function pFile(file){
+  if(!file.name.endsWith('.csv')){toast('Sirf .csv files!','wa');return;}
+  const r=new FileReader(); r.onload=ev=>pCSV(ev.target.result); r.readAsText(file,'UTF-8');
+}
+function pCSV(text){
+  text=text.replace(/^\uFEFF/,'');
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2){toast('File mein data nahi!','wa');return;}
+  const delim=lines[0].includes('\t')?'\t':',';
+  const pr=line=>{
+    const res=[];let cur='',q=false;
+    for(const ch of line){if(ch==='"'){q=!q;}else if(ch===delim&&!q){res.push(cur.trim());cur='';}else{cur+=ch;}}
+    res.push(cur.trim());return res;
+  };
+  const hdrs=pr(lines[0]).map(h=>h.replace(/^"|"$/g,'').toLowerCase().replace(/[\s_]/g,''));
+  const al={
+    employeeid:['employeeid','emp_id','empid','employee_id','id','code','empcode'],
+    name:['name','employeename','emp_name','fullname','full_name'],
+    department:['department','dept','department_name'],
+    designation:['designation','desig','position','role'],
+    mobile:['mobile','phone','contact','mobileno']
+  };
+  const cm={};
+  hdrs.forEach((h,i)=>Object.entries(al).forEach(([k,vs])=>{if(vs.includes(h))cm[k]=i;}));
+  if(cm.employeeid===undefined||cm.name===undefined||cm.department===undefined){
+    toast('EmployeeID, Name, Department columns nahi mile!','wa');return;
   }
+  pdata=lines.slice(1).map(line=>{
+    const c=pr(line);
+    return{
+      empId:(c[cm.employeeid]||'').replace(/^"|"$/g,'').toUpperCase().trim(),
+      name:(c[cm.name]||'').replace(/^"|"$/g,'').trim(),
+      dept:(c[cm.department]||'').replace(/^"|"$/g,'').trim(),
+      desig:cm.designation!==undefined?(c[cm.designation]||'').trim():'',
+      mob:cm.mobile!==undefined?(c[cm.mobile]||'').trim():''
+    };
+  }).filter(r=>r.empId&&r.name);
+  if(!pdata.length){toast('Valid rows nahi mili!','wa');return;}
+  showPrev();
+}
+function showPrev(){
+  const p=g('ppanel'); p.classList.add('on');
+  const newC=pdata.filter(r=>!mdir[r.empId]).length;
+  g('ptitle').textContent='Preview — '+pdata.length+' rows';
+  g('psub').textContent=newC+' naye | '+(pdata.length-newC)+' update honge';
+  g('perr').textContent='';
+  g('phead').innerHTML='<tr><th>Emp ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Mobile</th></tr>';
+  g('pbody').innerHTML=pdata.slice(0,50).map(r=>
+    '<tr style="'+(mdir[r.empId]?'background:rgba(245,158,11,.06)':'')+'">'+
+    '<td class="tm" style="color:var(--cy)">'+(mdir[r.empId]?'<span style="font-size:.68rem;color:var(--am)">↻ </span>':'')+r.empId+'</td>'+
+    '<td>'+r.name+'</td><td>'+r.dept+'</td><td>'+(r.desig||'—')+'</td><td>'+(r.mob||'—')+'</td></tr>'
+  ).join('');
+  p.scrollIntoView({behavior:'smooth'});
+}
+function confirmUp(){
+  let a=0,u=0;
+  pdata.forEach(r=>{if(mdir[r.empId])u++;else a++;mdir[r.empId]={name:r.name,dept:r.dept,designation:r.desig,mobile:r.mob};});
+  sS(MK,mdir);pdata=[];
+  g('ppanel').classList.remove('on');
+  refreshDepts();renderM();updStats();
+  toast(a+' add, '+u+' update!','ok');
+}
+function cancelUp(){pdata=[];g('ppanel').classList.remove('on');}
 
-  drawBarChart(filtered);
+function renderM(){
+  const q=(g('msrch')?g('msrch').value:'').toLowerCase();
+  const entries=Object.entries(mdir)
+    .filter(([id,e])=>!q||id.toLowerCase().includes(q)||e.name.toLowerCase().includes(q)||e.dept.toLowerCase().includes(q))
+    .sort((a,b)=>a[0].localeCompare(b[0]));
+  if(g('mcnt')) g('mcnt').textContent=Object.keys(mdir).length;
+  const tb=g('mtbody'); if(!tb) return;
+  if(!entries.length){tb.innerHTML='<tr><td colspan="7" class="nd">Koi record nahi<br><small>CSV upload karein ya + Add</small></td></tr>';return;}
+  tb.innerHTML=entries.map(([id,e],i)=>
+    '<tr>'+
+    '<td class="tm" style="color:var(--mu)">'+(i+1)+'</td>'+
+    '<td class="tm" style="color:var(--cy)">'+id+'</td>'+
+    '<td>'+e.name+'</td>'+
+    '<td>'+chip(e.dept)+'</td>'+
+    '<td style="color:var(--mu);font-size:.76rem">'+(e.designation||'—')+'</td>'+
+    '<td style="color:var(--mu);font-size:.76rem">'+(e.mobile||'—')+'</td>'+
+    '<td>'+
+    '<button class="btn ba" style="padding:2px 8px;font-size:.71rem" onclick="openEditM(\''+id+'\')">Edit</button> '+
+    '<button class="btn br" style="padding:2px 8px;font-size:.71rem" onclick="delM(\''+id+'\')">Del</button>'+
+    '</td></tr>'
+  ).join('');
+}
+function dlTpl(){
+  csvDL([['EmployeeID','Name','Department','Designation','Mobile'],
+    ['E001','Ram Kumar','Production','Operator','9876543210'],
+    ['E002','Sita Devi','HR','Manager',''],['E003','Mohan Lal','IT','Developer','']],
+    'master_template.csv');
+  toast('Template download!','ok');
+}
+function dlMaster(){
+  const e=Object.entries(mdir);
+  if(!e.length){toast('Master data khaali!','wa');return;}
+  csvDL([['EmployeeID','Name','Department','Designation','Mobile'],
+    ...e.map(([id,v])=>[id,v.name,v.dept,v.designation||'',v.mobile||''])],
+    'master_'+dStr(new Date())+'.csv');
+  toast(e.length+' exported!','ok');
+}
+function clrMaster(){
+  if(!confirm('Sab master data delete?'))return;
+  mdir={};sS(MK,mdir);refreshDepts();renderM();updStats();toast('Master clear','wa');
+}
 
-  const tbody = el('tableBody');
-  if(filtered.length === 0){
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-dim);">No records match these filters.</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = filtered.map(s=>{
-    const shiftPillCls = s.shiftType === 'Day' ? 'day' : 'night';
-    return `<tr>
-      <td><div class="emp-name">${s.empName||'—'}</div><div class="emp-code">${s.empCode||'—'}</div></td>
-      <td class="mono">${s.warehouse||'—'}</td>
-      <td class="mono">${s.shiftDate}</td>
-      <td><span class="pill ${shiftPillCls}">${s.shiftType} Shift</span></td>
-      <td class="mono">${fmtTime(s.firstPunch)}</td>
-      <td class="mono">${fmtTime(s.lastPunch)}</td>
-      <td>${renderTimeline(s)}</td>
-      <td><span class="hrs-val">${s.hours.toFixed(2)} h</span></td>
-      <td><span class="pill ${s.statusClass}">${s.status}</span></td>
-    </tr>`;
+// Manual sync for scanner on different device
+function doManualSync(){
+  const inp=document.createElement('input');
+  inp.type='file';inp.accept='.csv';
+  inp.onchange=e=>{const f=e.target.files[0];if(f)pFile(f);};
+  inp.click();
+}
+
+// ══════════════════════════════════════
+// MODAL
+// ══════════════════════════════════════
+function openAddM(){
+  editId=null;g('etitle').textContent='Employee Add';
+  ['eid','ename','edept','edesig','emob'].forEach(id=>g(id).value='');
+  g('eid').disabled=false; g('emod').classList.add('on');
+}
+function openEditM(id){
+  editId=id;const e=mdir[id];g('etitle').textContent='Edit Employee';
+  g('eid').value=id;g('ename').value=e.name;g('edept').value=e.dept;
+  g('edesig').value=e.designation||'';g('emob').value=e.mobile||'';
+  g('eid').disabled=true;g('emod').classList.add('on');
+}
+function closeEM(){g('emod').classList.remove('on');}
+function saveEM(){
+  const id=g('eid').value.trim().toUpperCase(),name=g('ename').value.trim(),dept=g('edept').value.trim();
+  if(!id||!name||!dept){toast('ID, Name, Dept zaroori!','wa');return;}
+  mdir[id]={name,dept,designation:g('edesig').value.trim(),mobile:g('emob').value.trim()};
+  sS(MK,mdir);refreshDepts();renderM();updStats();closeEM();toast(name+' saved!','ok');
+}
+function delM(id){
+  if(!confirm((mdir[id]?mdir[id].name:id)+' delete?'))return;
+  delete mdir[id];sS(MK,mdir);refreshDepts();renderM();updStats();toast('Deleted','wa');
+}
+
+// ══════════════════════════════════════
+// LINKS
+// ══════════════════════════════════════
+function bUrl(){return location.origin+location.pathname;}
+function cpTxt(txt){
+  navigator.clipboard.writeText(txt).then(()=>toast('Copied!','ok')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Copied!','ok');
+  });
+}
+function genScan(){
+  const loc=g('linp').value.trim();
+  if(!loc){toast('Location name daalo','wa');return;}
+  // Simple URL — NO master data in URL (avoids URI Too Long)
+  const url=bUrl()+'?mode=scan&loc='+encodeURIComponent(loc);
+  const cont=g('scan-links');
+  const old=cont.querySelector('[data-loc="'+loc+'"]');
+  if(old) old.remove();
+  const div=document.createElement('div');
+  div.className='dli';div.setAttribute('data-loc',loc);
+  const safeUrl=url.replace(/'/g,"\\'");
+  div.innerHTML='<span class="dn">📍 '+loc+'</span><span class="du">'+url+'</span><button class="btn bc" style="padding:2px 9px;font-size:.71rem" onclick="cpTxt(\''+safeUrl+'\')">Copy</button>';
+  cont.appendChild(div);
+  cpTxt(url);
+  toast(loc+' scanner link copied!','ok');
+  g('linp').value='';
+}
+function genView(){
+  const base=bUrl();
+  const allUrl=base+'?mode=view';
+  if(g('alvlink')) g('alvlink').textContent=allUrl;
+  const depts=[...new Set([...recs.map(r=>r.dept),...Object.values(mdir).map(e=>e.dept)].filter(Boolean))].sort();
+  const cont=g('view-links'); if(!cont) return;
+  if(!depts.length){cont.innerHTML='<div style="font-size:.76rem;color:var(--mu)">Master data ya attendance records hone chahiye</div>';return;}
+  cont.innerHTML=depts.map(d=>{
+    const url=base+'?mode=view&dept='+encodeURIComponent(d);
+    const su=url.replace(/'/g,"\\'");
+    return '<div class="dli"><span class="dn">'+d+'</span><span class="du">'+url+'</span><button class="btn bp" style="padding:2px 9px;font-size:.71rem" onclick="cpTxt(\''+su+'\')">Copy</button></div>';
   }).join('');
 }
 
-/* Clear-warehouse banner button */
-el('whBannerClear').addEventListener('click', ()=>{ el('warehouseFilter').value=''; render(); });
+// ══════════════════════════════════════
+// VIEWER MODE — full dashboard, ALL data
+// ══════════════════════════════════════
+let vdept = '';
+function renderV(){
+  recs=gS(SK); mdir=gS(MK);
+  const date=g('vdate')?g('vdate').value:'';
+  const sh  =g('vsh')?g('vsh').value:'';
+  const vloc=g('vloc')?g('vloc').value:'';
 
-[el('codeFilter'), el('nameFilter'), el('dateFromFilter'), el('dateToFilter'),
- el('warehouseFilter'), el('shiftFilter'), el('departmentFilter'), el('statusFilter')
-].forEach(node=>{ node.addEventListener('input', render); node.addEventListener('change', render); });
-
-el('clearFiltersBtn').addEventListener('click', ()=>{
-  el('codeFilter').value=''; el('nameFilter').value='';
-  el('dateFromFilter').value=''; el('dateToFilter').value='';
-  el('warehouseFilter').value='';   // ← NEW
-  el('shiftFilter').value=''; el('departmentFilter').value=''; el('statusFilter').value='';
-  render();
-});
-
-/* ---------- POPULATE DROPDOWNS ---------- */
-function populateWarehouseOptions(){
-  const sel = el('warehouseFilter');
-  const prev = sel.value;
-  const warehouses = [...new Set(
-    rawRecords.map(s => s.warehouse && s.warehouse.trim() ? s.warehouse.trim() : 'Unknown')
-  )].sort();
-  sel.innerHTML = '<option value="">All Warehouses</option>' +
-    warehouses.map(w => `<option value="${w.replace(/"/g,'&quot;')}">${w}</option>`).join('');
-  if(warehouses.includes(prev)) sel.value = prev;
-}
-
-function populateDepartmentOptions(){
-  const sel = el('departmentFilter');
-  const prev = sel.value;
-  const depts = [...new Set(
-    rawRecords.map(s => s.department && s.department.trim() ? s.department.trim() : 'Unassigned')
-  )].sort();
-  sel.innerHTML = '<option value="">All Departments</option>' +
-    depts.map(d => `<option value="${d.replace(/"/g,'&quot;')}">${d}</option>`).join('');
-  if(depts.includes(prev)) sel.value = prev;
-}
-
-/* ---------- FIREBASE STORAGE ---------- */
-async function saveToStorage(){
-  try{
-    await db.ref('attendance_data').set({
-      records: rawRecords.map(s=>({...s, firstPunch:s.firstPunch.toISOString(), lastPunch:s.lastPunch.toISOString()})),
-      savedAt: new Date().toISOString()
-    });
-  }catch(e){ console.error('Storage save error', e); showToast('⚠ Could not save shared data'); }
-}
-
-function applyLoadedData(parsed, opts){
-  opts = opts || {};
-  rawRecords = parsed.records.map(s=>({...s, firstPunch:new Date(s.firstPunch), lastPunch:new Date(s.lastPunch)}));
-  showDashboard();
-  el('subTitle').textContent = `${rawRecords.length} shift-records · last updated ${new Date(parsed.savedAt).toLocaleString()}`;
-  el('sharedBadge').style.display = 'flex';
-  if(opts.notifyUpdate) showToast('↻ Dashboard updated with the latest data');
-}
-
-function loadFromStorage(){
-  el('loadingState').style.display = 'block';
-  let firstLoad = true;
-  db.ref('attendance_data').on('value', (snapshot)=>{
-    const parsed = snapshot.val();
-    el('loadingState').style.display = 'none';
-    if(parsed && Array.isArray(parsed.records) && parsed.records.length){
-      applyLoadedData(parsed, { notifyUpdate: !firstLoad });
-    } else if(rawRecords.length === 0){
-      el('emptyState').style.display = 'block';
-    }
-    firstLoad = false;
-  }, (err)=>{
-    console.error('Storage load error', err);
-    el('loadingState').style.display = 'none';
-    if(rawRecords.length === 0) el('emptyState').style.display = 'block';
-    showToast('⚠ Could not reach shared data');
-  });
-}
-
-function showDashboard(){
-  el('emptyState').style.display = 'none';
-  el('dashboard').style.display = 'block';
-  if(IS_ADMIN){ el('clearBtn').style.display='inline-flex'; el('downloadWrap').style.display='block'; }
-  populateWarehouseOptions();    // ← NEW
-  populateDepartmentOptions();
-  render();
-}
-
-/* ---------- CSV UPLOAD (admin only) ---------- */
-if(IS_ADMIN){
-  el('csvInput').addEventListener('change', (e)=>{
-    const file = e.target.files[0]; if(!file) return;
-    Papa.parse(file, {
-      header:true, skipEmptyLines:true,
-      complete: async (results)=>{
-        try{
-          rawRecords = processRows(results.data);
-          if(rawRecords.length === 0){ showToast('No valid punch records found.'); return; }
-          showDashboard();
-          el('subTitle').textContent = `${rawRecords.length} shift-records · processed from ${file.name}`;
-          showToast('CSV processed — saving for sharing…');
-          await saveToStorage();
-          el('sharedBadge').style.display = 'flex';
-          showToast('✓ Saved — anyone with the view-only link now sees this data');
-        }catch(err){ console.error(err); showToast('⚠ Error processing CSV'); }
-      },
-      error: ()=> showToast('⚠ Could not read CSV file')
-    });
-    e.target.value = '';
-  });
-
-  el('clearBtn').addEventListener('click', async ()=>{
-    if(!confirm('Clear the shared attendance data?')) return;
-    try{ await db.ref('attendance_data').remove(); }
-    catch(e){ showToast('⚠ Could not clear shared data'); return; }
-    rawRecords = [];
-    el('dashboard').style.display='none'; el('emptyState').style.display='block';
-    el('sharedBadge').style.display='none'; el('clearBtn').style.display='none';
-    el('downloadWrap').style.display='none'; el('subTitle').textContent='Upload raw punch-log CSV to begin';
-    showToast('Data cleared');
-  });
-
-  el('downloadBtn').addEventListener('click', (e)=>{ e.stopPropagation(); el('downloadMenu').classList.toggle('open'); });
-  document.addEventListener('click', ()=> el('downloadMenu').classList.remove('open'));
-
-  function fmtDateTimeForExport(d){ return fmtDate(d) + ' ' + fmtTime(d); }
-
-  function buildExportRows(){
-    const rows = currentFiltered.length ? currentFiltered : rawRecords;
-    return rows.map(s=>({
-      'Employee Code': s.empCode, 'Employee Name': s.empName,
-      'Warehouse': s.warehouse, 'Department': s.department||'', 'Vendor': s.vendor||'',
-      'Shift Date': s.shiftDate, 'Shift Type': s.shiftType,
-      'First Punch': fmtDateTimeForExport(s.firstPunch), 'Last Punch': fmtDateTimeForExport(s.lastPunch),
-      'Hours Worked': +s.hours.toFixed(2), 'Status': s.status
-    }));
+  // Populate location dropdown
+  const vlocEl=g('vloc');
+  if(vlocEl){
+    const locs=[...new Set(recs.map(r=>r.loc||'Main').filter(Boolean))].sort();
+    const cv=vlocEl.value;
+    vlocEl.innerHTML='<option value="">Sab Locations</option>'+locs.map(l=>'<option'+(l===cv?' selected':'')+'>'+l+'</option>').join('');
   }
 
-  el('downloadMenu').querySelectorAll('button').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const fmt = btn.dataset.fmt;
-      const data = buildExportRows();
-      if(data.length === 0){ showToast('No data to download'); return; }
-      const stamp = fmtDate(new Date());
-      if(fmt === 'csv'){
-        const csv = Papa.unparse(data);
-        const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-        a.download = `attendance_${stamp}.csv`; a.click();
-      } else {
-        const ws = XLSX.utils.json_to_sheet(data);
-        ws['!cols'] = Object.keys(data[0]).map(()=>({wch:16}));
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
-        XLSX.writeFile(wb, `attendance_${stamp}.xlsx`);
-      }
-      el('downloadMenu').classList.remove('open');
-      showToast(`✓ Downloaded ${data.length} records`);
-    });
+  // Show ALL records if no date selected, else filter by date
+  let rows=recs.filter(r=>{
+    if(date && r.date!==date) return false;
+    if(vdept && r.dept!==vdept) return false;
+    if(sh && r.shift!==sh) return false;
+    if(vloc && (r.loc||'Main')!==vloc) return false;
+    return true;
   });
+
+  // Stats — always show counts for selected filters
+  const todayStr = dStr(new Date());
+  const todayRows = rows.filter(r=>r.date===todayStr);
+  const vs=g('vstats');
+  if(vs) vs.innerHTML=
+    '<div class="sc s1"><div class="slb">All Records</div><div class="sv">'+rows.length+'</div></div>'+
+    '<div class="sc s2"><div class="slb">Aaj Present</div><div class="sv">'+todayRows.length+'</div></div>'+
+    '<div class="sc s3"><div class="slb">Day ☀</div><div class="sv">'+rows.filter(r=>r.shift==='Day').length+'</div></div>'+
+    '<div class="sc s4"><div class="slb">Night 🌙</div><div class="sv">'+rows.filter(r=>r.shift==='Night').length+'</div></div>'+
+    '<div class="sc s5"><div class="slb">Punch IN Only</div><div class="sv">'+rows.filter(r=>r.in&&!r.out).length+'</div></div>'+
+    '<div class="sc s6"><div class="slb">Punch OUT Done</div><div class="sv">'+rows.filter(r=>r.out).length+'</div></div>';
+
+  // Dept pills
+  {
+    const depts=[...new Set(rows.map(r=>r.dept).filter(Boolean))].sort();
+    const vp=g('vpills');
+    if(vp) vp.innerHTML=
+      '<button class="dp'+(vdept?'':' on')+'" onclick="setVD(\'\')">All</button>'+
+      depts.map(d=>'<button class="dp'+(d===vdept?' on':'')+'" onclick="setVD(\''+d+'\')">'+d+'</button>').join('');
+  }
+
+  // Chart — dept wise
+  const dm={};
+  rows.forEach(r=>{if(!dm[r.dept])dm[r.dept]={Day:0,Night:0};dm[r.dept][r.shift]++;});
+  const labels=Object.keys(dm);
+  const vc=g('vchart');
+  if(vc){
+    if(vch) vch.destroy();
+    if(labels.length){
+      vch=new Chart(vc.getContext('2d'),{
+        type:'bar',
+        data:{labels,datasets:[
+          {label:'Day',data:labels.map(d=>dm[d].Day),backgroundColor:'rgba(245,158,11,.7)',borderColor:'#F59E0B',borderWidth:1,borderRadius:4},
+          {label:'Night',data:labels.map(d=>dm[d].Night),backgroundColor:'rgba(129,140,248,.7)',borderColor:'#818CF8',borderWidth:1,borderRadius:4},
+        ]},
+        options:{responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{labels:{color:'#E2E8F0'}},tooltip:{mode:'index',intersect:false}},
+          scales:{x:{ticks:{color:'#94A3B8'},grid:{color:'rgba(51,65,85,.5)'}},
+                  y:{ticks:{color:'#94A3B8',stepSize:1},grid:{color:'rgba(51,65,85,.5)'},beginAtZero:true}}}
+      });
+    }
+  }
+
+  // Table — latest first, ALL data
+  const rc=g('vrcount'); if(rc) rc.textContent=rows.length+' records'+(date?' ('+date+')':' (Sab dates)');
+  const tb=g('vtbody'); if(!tb) return;
+  const sorted=[...rows].sort((a,b)=>new Date(b.in)-new Date(a.in));
+  if(!sorted.length){
+    tb.innerHTML='<tr><td colspan="10" class="nd">Koi record nahi'+(date?' — '+date:'')+'</td></tr>';
+    return;
+  }
+  tb.innerHTML=sorted.map((r,i)=>
+    '<tr>'+
+    '<td class="tm" style="color:var(--mu)">'+(i+1)+'</td>'+
+    '<td class="tm" style="color:var(--cy)">'+r.empId+'</td>'+
+    '<td>'+r.name+'</td>'+
+    '<td>'+chip(r.dept)+'</td>'+
+    '<td style="font-size:.76rem;color:var(--am)">📍 '+(r.loc||'Main')+'</td>'+
+    '<td class="tm" style="font-size:.76rem">'+r.date+'</td>'+
+    '<td>'+sBadge(r.shift)+'</td>'+
+    '<td class="tm" style="color:var(--gn)">'+fT(r.in)+'</td>'+
+    '<td class="tm" style="color:'+(r.out?'var(--rd)':'var(--mu)')+'">'+fT(r.out)+'</td>'+
+    '<td style="font-size:.76rem;color:var(--mu)">'+dur(r.in,r.out)+'</td>'+
+    '</tr>'
+  ).join('');
+}
+function setVD(d){vdept=d;renderV();}
+function dlV(){
+  const date=g('vdate')?g('vdate').value:'';
+  const sh=g('vsh')?g('vsh').value:'';
+  const vloc=g('vloc')?g('vloc').value:'';
+  const rows=recs.filter(r=>{
+    if(date && r.date!==date) return false;
+    if(vdept && r.dept!==vdept) return false;
+    if(sh && r.shift!==sh) return false;
+    if(vloc && (r.loc||'Main')!==vloc) return false;
+    return true;
+  });
+  if(!rows.length){toast('Koi data nahi!','wa');return;}
+  csvDL([['Emp ID','Name','Department','Location','Date','Shift','Punch IN','Punch OUT','Duration'],
+    ...rows.sort((a,b)=>new Date(b.in)-new Date(a.in)).map(r=>[r.empId,r.name,r.dept,r.loc||'Main',r.date,r.shift,fT(r.in),fT(r.out),dur(r.in,r.out)])],
+    'view_all_'+(date||dStr(new Date()))+'.csv');
+  toast('Export done! '+rows.length+' records','ok');
 }
 
-/* ---------- INIT ---------- */
-applyAccessMode();
-loadFromStorage();
+// ══════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════
+let tt;
+function toast(msg,type){
+  const t=g('toast'); g('tmsg').textContent=msg;
+  t.style.borderColor=type==='ok'?'var(--gn)':'var(--am)';
+  t.classList.add('on'); clearTimeout(tt);
+  tt=setTimeout(()=>t.classList.remove('on'),3500);
+}
+
+// ══════════════════════════════════════
+// KEYBOARD
+// ══════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(MODE!=='view'&&g('pg-att')&&g('pg-att').classList.contains('on')&&
+     document.activeElement.tagName!=='INPUT'&&
+     document.activeElement.tagName!=='SELECT'&&
+     document.activeElement.tagName!=='TEXTAREA'&&e.key.length===1){
+    const si=g('sinp'); if(si) si.focus();
+  }
+});
+document.getElementById('emod').addEventListener('click',function(e){if(e.target===this)closeEM();});
 </script>
 </body>
 </html>
